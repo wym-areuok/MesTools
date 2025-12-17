@@ -2,11 +2,10 @@ package com.mes.common.enums;
 
 /**
  * 数据源
- * 
- * @author ruoyi
+ *
+ * @author weiyiming
  */
-public enum DataSourceType
-{
+public enum DataSourceType {
     /**
      * 主库
      */

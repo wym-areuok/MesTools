@@ -1,13 +1,13 @@
 # 项目相关配置
-ruoyi:
+mestools:
   # 名称
-  name: RuoYi
+  name: MesTools
   # 版本
-  version: 3.9.0
+  version: 1.0.0
   # 版权年份
   copyrightYear: 2025
-  # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
-  profile: D:/ruoyi/uploadPath
+  # 文件路径 示例（ Windows配置D:/mestools/uploadPath，Linux配置 /home/mestools/uploadPath）
+  profile: D:/MesToolsUploadPath/uploadPath
   # 获取ip地址开关
   addressEnabled: false
   # 验证码类型 math 数字计算 char 字符验证
@@ -34,14 +34,14 @@ server:
 # 日志配置
 logging:
   level:
-    com.mes: debug
+    com.mestools: debug
     org.springframework: warn
 
 # 用户配置
 user:
   password:
     # 密码最大错误次数
-    maxRetryCount: 5
+    maxRetryCount: 10
     # 密码锁定时间（默认10分钟）
     lockTime: 10
 
@@ -95,7 +95,7 @@ token:
   # 令牌密钥
   secret: abcdefghijklmnopqrstuvwxyz
   # 令牌有效期（默认30分钟）
-  expireTime: 30
+  expireTime: 120
 
 # MyBatis配置
 mybatis:
@@ -108,7 +108,7 @@ mybatis:
 
 # PageHelper分页插件
 pagehelper:
-  helperDialect: mysql
+  helperDialect: sqlserver
   supportMethodsArguments: true
   params: count=countSql
 
@@ -124,7 +124,7 @@ referer:
   # 防盗链开关
   enabled: false
   # 允许的域名列表
-  allowed-domains: localhost,127.0.0.1,ruoyi.vip,www.ruoyi.vip
+  allowed-domains: localhost,127.0.0.1
 
 # 防止XSS攻击
 xss:

@@ -2,12 +2,11 @@ package com.mes.common.enums;
 
 /**
  * 操作状态
- * 
- * @author ruoyi
+ *
+ * @author weiyiming
  *
  */
-public enum BusinessStatus
-{
+public enum BusinessStatus {
     /**
      * 成功
      */
