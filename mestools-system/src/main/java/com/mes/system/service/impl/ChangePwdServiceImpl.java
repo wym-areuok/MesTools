@@ -103,20 +103,20 @@ public class ChangePwdServiceImpl implements IChangePwdService {
         }
         JdbcTemplate template = new JdbcTemplate(dataSource);
 
-        // 从fis_pwd_table字典获取label为FISPWDTABLE的value作为tableName
+        // 从fis_web_pwd_info字典获取label为FISWEB_DB_TABLE的value作为tableName
         // 获取表名
-        String tableName = dictDataService.selectDictByTypeAndLabel("fis_pwd_table", "FISPWDTABLE");
+        String tableName = dictDataService.selectDictByTypeAndLabel("fis_web_pwd_info", "FISWEB_DB_TABLE");
         if (tableName == null || tableName.isEmpty()) {
-            throw new ServiceException("未找到FIS密码表配置信息");
+            throw new ServiceException("未找到FisWeb密码表配置信息");
         }
         try {
             String checkSql = "SELECT COUNT(1) FROM " + tableName + " WHERE fis_number = ?";
             Integer count = template.queryForObject(checkSql, Integer.class, fisNumber);
             if (count == null || count == 0) {
-                throw new ServiceException("FIS账号 [" + fisNumber + "] 不存在,无法修改密码");
+                throw new ServiceException("FisWeb账号 [" + fisNumber + "] 不存在,无法修改密码");
             }
             if (count > 1) {
-                throw new ServiceException("FIS账号 [" + fisNumber + "] 存在多条记录,无法修改密码");
+                throw new ServiceException("FisWeb账号 [" + fisNumber + "] 存在多条记录,无法修改密码");
             }
             //懒得配置字典了直接PCA..dbo.ComplexHash(?,?)写固定调用
             String updateSql = "UPDATE " + tableName + " SET password = PCA..dbo.(fis_number, ?), Udt = GETDATE() WHERE fis_number = ?";
