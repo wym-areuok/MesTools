@@ -118,12 +118,13 @@ public class ChangePwdServiceImpl implements IChangePwdService {
             if (count > 1) {
                 throw new ServiceException("FIS账号 [" + fisNumber + "] 存在多条记录,无法修改密码");
             }
-            String updateSql = "UPDATE " + tableName + " SET password = ?, Udt = GETDATE() WHERE fis_number = ?";
+            //懒得配置字典了直接PCA..dbo.ComplexHash(?,?)写固定调用
+            String updateSql = "UPDATE " + tableName + " SET password = PCA..dbo.(fis_number, ?), Udt = GETDATE() WHERE fis_number = ?";
             int result = template.update(updateSql, password, fisNumber);
             return result > 0;
         } catch (DataAccessException e) {
             logger.error("数据库操作异常: {}", e.getMessage());
-            if (e.getMessage().contains("Invalid object name")) {
+            if (e.getMessage() != null && e.getMessage().contains("Invalid object name")) {
                 throw new ServiceException("数据库表 [" + tableName + "] 不存在");
             }
             throw new ServiceException("数据库操作失败: " + e.getMessage());
