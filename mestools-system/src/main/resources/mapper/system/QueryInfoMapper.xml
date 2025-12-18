@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mes.system.mapper.QueryInfoMapper">
+
+    <resultMap type="QueryInfo" id="QueryInfoResult">
+        <result property="infoId" column="info_id"/>
+        <result property="infoTitle" column="info_title"/>
+        <result property="infoTags" column="info_tags"/>
+        <result property="infoType" column="info_type"/>
+        <result property="infoContent" column="info_content"/>
+        <result property="status" column="status"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+        <result property="searchCount" column="search_count"/>
+    </resultMap>
+
+    <sql id="selectQueryInfoVo">
+        SELECT
+        info_id, info_title, info_tags, info_type, info_content, status,
+        create_by, create_time, update_by, update_time, remark, search_count
+        FROM string_tool_info
+    </sql>
+
+    <select id="selectQueryInfoByInfoId" parameterType="Integer" resultMap="QueryInfoResult">
+        <include refid="selectQueryInfoVo"/>
+        WHERE info_id = #{infoId}
+    </select>
+
+    <select id="selectByInfoTitle" parameterType="String" resultMap="QueryInfoResult">
+        <include refid="selectQueryInfoVo"/>
+        WHERE info_title = #{infoTitle}
+    </select>
+
+    <select id="selectQueryInfoList" parameterType="QueryInfo" resultMap="QueryInfoResult">
+        <include refid="selectQueryInfoVo"/>
+        <where>
+            <if test="infoTitle != null and infoTitle != ''">
+                AND info_title LIKE CONCAT('%', #{infoTitle}, '%')
+            </if>
+            <if test="infoType != null and infoType != ''">
+                AND info_type = #{infoType}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="createBy != null and createBy != ''">
+                AND create_by LIKE CONCAT('%', #{createBy}, '%')
+            </if>
+            <!-- 精确的逗号分隔标签匹配查询，避免部分匹配问题 -->
+            <if test="infoTags != null and infoTags != ''">
+                AND (
+                <foreach collection="infoTags.split(',')" item="tag" separator=" OR ">
+                    (',' + info_tags + ',') LIKE CONCAT('%,', #{tag}, ',%')
+                </foreach>
+                )
+            </if>
+        </where>
+        ORDER BY search_count DESC, create_time DESC
+    </select>
+
+    <insert id="insertQueryInfo" parameterType="QueryInfo" useGeneratedKeys="true" keyProperty="infoId"
+            keyColumn="info_id">
+        INSERT INTO string_tool_info
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="infoTitle != null and infoTitle != ''">info_title,</if>
+            <if test="infoTags != null and infoTags != ''">info_tags,</if>
+            <if test="infoType != null and infoType != ''">info_type,</if>
+            <if test="infoContent != null and infoContent != ''">info_content,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="searchCount != null">search_count,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+            <if test="remark != null and remark != ''">,remark</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="infoTitle != null and infoTitle != ''">#{infoTitle},</if>
+            <if test="infoTags != null and infoTags != ''">#{infoTags},</if>
+            <if test="infoType != null and infoType != ''">#{infoType},</if>
+            <if test="infoContent != null and infoContent != ''">#{infoContent},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="searchCount != null">#{searchCount},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            GETDATE()
+            <if test="remark != null and remark != ''">,#{remark}</if>
+        </trim>
+    </insert>
+
+    <update id="updateQueryInfo" parameterType="QueryInfo">
+        UPDATE string_tool_info
+        <set>
+            <if test="infoTitle != null and infoTitle != ''">info_title = #{infoTitle},</if>
+            <if test="infoTags != null and infoTags != ''">info_tags = #{infoTags},</if>
+            <if test="infoType != null and infoType != ''">info_type = #{infoType},</if>
+            <if test="infoContent != null">info_content = #{infoContent},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="searchCount != null">search_count = #{searchCount},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = GETDATE(),
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        WHERE info_id = #{infoId}
+    </update>
+
+    <delete id="deleteQueryInfoByInfoId" parameterType="Integer">
+        DELETE FROM string_tool_info
+        WHERE info_id = #{infoId}
+    </delete>
+
+    <delete id="deleteQueryInfoByInfoIds" parameterType="Integer">
+        DELETE FROM string_tool_info
+        WHERE info_id IN
+        <foreach item="infoId" collection="array" open="(" separator="," close=")">
+            #{infoId}
+        </foreach>
+    </delete>
+
+    <update id="incrementSearchCount" parameterType="Integer">
+        UPDATE string_tool_info
+        SET search_count = search_count + 1
+        WHERE info_id = #{infoId}
+    </update>
+</mapper>

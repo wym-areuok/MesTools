@@ -37,6 +37,14 @@ public interface SysDictDataMapper {
     public String selectDictLabel(@Param("dictType") String dictType, @Param("dictValue") String dictValue);
 
     /**
+     * 根据字典类型和字典标签查询信息
+     *
+     * @author weiyiming
+     * @date 2025-12-03
+     */
+    public String selectDictByTypeAndLabel(@Param("dictType") String dictType, @Param("dictLabel") String dictLabel);
+
+    /**
      * 根据字典数据ID查询信息
      *
      * @param dictCode 字典数据ID

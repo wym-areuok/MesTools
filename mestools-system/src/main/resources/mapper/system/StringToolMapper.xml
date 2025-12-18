@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mes.system.mapper.StringToolMapper">
+
+    <delete id="deleteByUserId">
+        DELETE FROM string_tool_temp WHERE user_id = #{userId}
+    </delete>
+
+    <select id="countByUserId" resultType="int">
+        SELECT COUNT(*) FROM string_tool_temp WHERE user_id = #{userId}
+    </select>
+
+    <update id="createIndex">
+        <!-- 检查并创建user_id索引 -->
+        IF NOT EXISTS (SELECT name FROM sysindexes WHERE name = 'IX_string_tool_temp_user_id')
+        CREATE NONCLUSTERED INDEX IX_string_tool_temp_user_id ON string_tool_temp(user_id);
+    </update>
+
+</mapper>

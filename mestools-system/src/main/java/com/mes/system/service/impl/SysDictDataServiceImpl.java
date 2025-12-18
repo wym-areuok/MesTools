@@ -43,6 +43,19 @@ public class SysDictDataServiceImpl implements ISysDictDataService {
     }
 
     /**
+     * 根据字典类型和字典标签查询信息
+     *
+     * @param dictType
+     * @param dictLabel
+     * @author weiyiming
+     * @date 2025-12-03
+     */
+    @Override
+    public String selectDictByTypeAndLabel(String dictType, String dictLabel) {
+        return dictDataMapper.selectDictByTypeAndLabel(dictType, dictLabel);
+    }
+
+    /**
      * 根据字典数据ID查询信息
      *
      * @param dictCode 字典数据ID
