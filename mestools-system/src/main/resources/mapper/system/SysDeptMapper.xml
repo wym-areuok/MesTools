@@ -158,7 +158,7 @@
     </update>
 
     <delete id="deleteDeptById" parameterType="Long">
-        update sys_dept set del_flag = '2' where dept_id = #{deptId}
+        update sys_dept set del_flag = '1' where dept_id = #{deptId}
     </delete>
 
 </mapper> 

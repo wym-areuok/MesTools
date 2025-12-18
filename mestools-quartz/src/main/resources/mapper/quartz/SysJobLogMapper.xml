@@ -87,7 +87,7 @@
         <if test="jobMessage != null and jobMessage != ''">#{jobMessage},</if>
         <if test="status != null and status != ''">#{status},</if>
         <if test="exceptionInfo != null and exceptionInfo != ''">#{exceptionInfo},</if>
-        sysdate()
+        getdate()
         )
     </insert>
 
