@@ -110,7 +110,7 @@ public class ChangePwdServiceImpl implements IChangePwdService {
             throw new ServiceException("未找到FisWeb密码表配置信息");
         }
         try {
-            String checkSql = "SELECT COUNT(1) FROM " + tableName + " WHERE fis_number = ?";
+            String checkSql = "SELECT COUNT(*) FROM " + tableName + " WHERE Account = ?";
             Integer count = template.queryForObject(checkSql, Integer.class, fisNumber);
             if (count == null || count == 0) {
                 throw new ServiceException("FisWeb账号 [" + fisNumber + "] 不存在,无法修改密码");
@@ -119,7 +119,7 @@ public class ChangePwdServiceImpl implements IChangePwdService {
                 throw new ServiceException("FisWeb账号 [" + fisNumber + "] 存在多条记录,无法修改密码");
             }
             //懒得配置字典了直接PCA..dbo.ComplexHash(?,?)写固定调用
-            String updateSql = "UPDATE " + tableName + " SET password = PCA..dbo.(fis_number, ?), Udt = GETDATE() WHERE fis_number = ?";
+            String updateSql = "UPDATE " + tableName + " SET password = PCA..dbo.(Account, ?), Udt = GETDATE() WHERE Account = ?";
             int result = template.update(updateSql, password, fisNumber);
             return result > 0;
         } catch (DataAccessException e) {
