@@ -40,8 +40,8 @@ public class ExecuteSqlController extends BaseController {
     private static final List<String> DANGEROUS_KEYWORDS = Arrays.asList("DROP", "TRUNCATE", "ALTER", "CREATE", "RENAME");
 
     private static final List<Pattern> ALWAYS_TRUE_PATTERNS = Arrays.asList(
-            "\\s*1\\s*=\\s*1",
-            "\\s*2\\s*>\\s*1",
+            "\\b1\\s*=\\s*1\\b",
+            "\\b2\\s*>\\s*1\\b",
             "'(?:''|[^'])*'\\s*=\\s*'(?:''|[^'])*'"
     ).stream().map(p -> Pattern.compile(p, Pattern.CASE_INSENSITIVE)).collect(Collectors.toList());
 
@@ -51,7 +51,7 @@ public class ExecuteSqlController extends BaseController {
      * 通用分词正则：用于提取关键字并忽略注释/字符串
      */
     private static final Pattern GENERAL_TOKEN_PATTERN = Pattern.compile(
-            "(--[^\\r\\n]*)|(/\\*[\\s\\S]*?\\*/)|('(?:''|[^'])*')|(\\[[^\\]]*\\])|\\b(SELECT|UPDATE|INSERT|DELETE|DROP|TRUNCATE|ALTER|CREATE|RENAME)\\b",
+            "(--[^\\r\\n]*)|(/\\*[\\s\\S]*?\\*/)|('(?:''|[^'])*')|(\\[[^\\]]*\\])|(;)|\\b(SELECT|UPDATE|INSERT|DELETE|DROP|TRUNCATE|ALTER|CREATE|RENAME)\\b",
             Pattern.CASE_INSENSITIVE);
 
     /**
@@ -192,15 +192,15 @@ public class ExecuteSqlController extends BaseController {
 
     /**
      * SQL 安全校验核心逻辑：
-     * 1. 预处理：去除 BOM 头及首尾空格，防止字符编码绕过。
-     * 2. 智能分词：使用正则解析 SQL，自动忽略注释,字符串常量及方括号标识符，精准提取有效关键字。
-     * 3. 防批处理：检测分号 (;)，强制禁止一次性执行多条 SQL 语句。
+     * 1. 预处理：去除 BOM 头及首尾空格,防止字符编码绕过。
+     * 2. 智能分词：使用正则解析 SQL,自动忽略注释,字符串常量及方括号标识符,精准提取有效关键字。
+     * 3. 防批处理：检测分号 (;),强制禁止一次性执行多条 SQL 语句。
      * 4. 关键字校验：
      * 验证首个有效关键字是否匹配当前操作类型。
-     * 全局拦截高危关键字 (DROP, TRUNCATE, ALTER, CREATE, RENAME)，INSERT 操作除外。
+     * 全局拦截高危关键字 (DROP, TRUNCATE, ALTER, CREATE, RENAME),INSERT 操作除外。
      * 互斥检查：SELECT 语句禁止包含 DML 关键字；DML 语句禁止包含其他类型的 DML 操作且主关键字只能出现一次。
      * 5. 深度语法校验：
-     * SELECT: 强制所有查询（含子查询,联合查询）必须包含 TOP N 语法，且 N <= 1000。
+     * SELECT: 强制所有查询（含子查询,联合查询）必须包含 TOP N 语法,且 N <= 1000。
      * UPDATE/DELETE: 强制包含 WHERE 子句；禁止恒真条件 (如 1=1)；强制包含 = 或 IN 精确匹配条件。
      */
     private ValidationResult validate(String sql, String operationType) {
@@ -217,14 +217,25 @@ public class ExecuteSqlController extends BaseController {
         kwCounts.put("DELETE", 0);
         kwCounts.put("DANGEROUS", 0);
         String firstKeyword = null;
+        boolean hasSemicolon = false;
         while (matcher.find()) {
             // 跳过 Group 1(单行注释), Group 2(多行注释), Group 3(字符串), Group 4(方括号标识符)
             if (matcher.group(1) != null || matcher.group(2) != null || matcher.group(3) != null || matcher.group(4) != null) {
                 continue;
             }
-            String keyword = matcher.group(5).toUpperCase();
+            // Group 5 是分号
+            if (matcher.group(5) != null) {
+                hasSemicolon = true;
+                continue;
+            }
+            // Group 6 是关键字
+            String keyword = matcher.group(6).toUpperCase();
             if (firstKeyword == null) {
                 firstKeyword = keyword;
+            }
+            // 如果之前已经出现了分号,且现在又出现了新的关键字,说明是多条语句 (Batch)
+            if (hasSemicolon) {
+                return ValidationResult.invalid("检测到多条SQL语句（通过分号分隔）,请一次只执行一条语句");
             }
             if (DANGEROUS_KEYWORDS.contains(keyword)) {
                 kwCounts.put("DANGEROUS", kwCounts.get("DANGEROUS") + 1);
@@ -305,7 +316,7 @@ public class ExecuteSqlController extends BaseController {
                 hasSelect = true;
                 String topN = matcher.group(6);
                 if (topN == null) {
-                    return ValidationResult.invalid("所有查询(包括子查询,联合查询)必须包含 TOP N 语法");
+                    return ValidationResult.invalid("所有查询(包括子查询、联合查询)必须包含 TOP N 语法");
                 }
                 try {
                     int n = Integer.parseInt(topN);
@@ -327,16 +338,16 @@ public class ExecuteSqlController extends BaseController {
     }
 
     private String stripSubsequentClauses(String whereClause) {
-        String upperClause = whereClause.toUpperCase();
-        String[] subsequentClauses = {"ORDER BY", "GROUP BY", "HAVING", "LIMIT", "OFFSET"};
-        int firstSubsequentClauseIndex = -1;
-        for (String clause : subsequentClauses) {
-            int index = upperClause.indexOf(" " + clause + " ");
-            if (index != -1 && (firstSubsequentClauseIndex == -1 || index < firstSubsequentClauseIndex)) {
-                firstSubsequentClauseIndex = index;
+        // 使用正则查找关键字,确保不匹配字符串或注释中的内容
+        // Group 5 是查找的截断关键字
+        Pattern p = Pattern.compile("(--[^\\r\\n]*)|(/\\*[\\s\\S]*?\\*/)|('(?:''|[^'])*')|(\\[[^\\]]*\\])|\\b(ORDER\\s+BY|GROUP\\s+BY|HAVING|LIMIT|OFFSET)\\b", Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(whereClause);
+        while (m.find()) {
+            if (m.group(5) != null) {
+                return whereClause.substring(0, m.start()).trim();
             }
         }
-        return (firstSubsequentClauseIndex != -1 ? whereClause.substring(0, firstSubsequentClauseIndex) : whereClause).trim();
+        return whereClause.trim();
     }
 
     private boolean isAlwaysTrueCondition(String whereClause) {
@@ -347,4 +358,37 @@ public class ExecuteSqlController extends BaseController {
         }
         return false;
     }
+    /**测试SQL事例
+     * -- 1. 缺少 TOP：全表查询风险
+     * SELECT * FROM [dailytools].[dbo].[sys_oper_log];
+     * -- 2. TOP 数量超标：超过 1000 条
+     * SELECT TOP 1001 * FROM [dailytools].[dbo].[sys_oper_log];
+     * -- 3. 子查询漏洞：外层有 TOP，但内层子查询没有 TOP (会导致内层全表扫描)
+     * SELECT TOP 10 *
+     * FROM (
+     *     SELECT * FROM [dailytools].[dbo].[sys_oper_log]
+     * ) AS T;
+     * -- 4. 批量操作：通过分号分隔的多条语句
+     * SELECT TOP 10 * FROM [dailytools].[dbo].[sys_oper_log];
+     * SELECT TOP 10 * FROM [dailytools].[dbo].[sys_oper_log];
+     * -- 5. 混合操作：查询语句中夹带删除操作 (有分号)
+     * SELECT TOP 10 * FROM [dailytools].[dbo].[sys_oper_log]; DELETE FROM [dailytools].[dbo].[sys_oper_log];
+     * -- 6. 混合操作：更新语句中夹带删除操作 (无分号)
+     * UPDATE [dailytools].[dbo].[sys_oper_log] SET status = 1 WHERE oper_id = 1 DELETE FROM [dailytools].[dbo].[sys_oper_log];
+     * -- 7. 危险操作：DROP 表
+     * DROP TABLE [dailytools].[dbo].[sys_oper_log];
+     * -- 8. 危险操作：RENAME (即使不常用，也应拦截)
+     * -- SQL Server 使用 sp_rename, 但我们的关键字检测会拦截 RENAME
+     * SELECT TOP 10 * FROM [dailytools].[dbo].[sys_oper_log] RENAME TO new_log;
+     * -- 9. 不安全的 UPDATE：缺少 WHERE 子句 (全表更新)
+     * UPDATE [dailytools].[dbo].[sys_oper_log] SET status = 1;
+     * -- 10. 不安全的 UPDATE：WHERE 条件范围过大 (未使用 = 或 IN)
+     * UPDATE [dailytools].[dbo].[sys_oper_log] SET status = 1 WHERE oper_id > 100;
+     * -- 11. 不安全的 DELETE：恒真条件 (1=1)
+     * DELETE FROM [dailytools].[dbo].[sys_oper_log] WHERE 1=1;
+     * -- 12. 不安全的 DELETE：恒真条件变体 ('a'='a')
+     * DELETE FROM [dailytools].[dbo].[sys_oper_log] WHERE 'a'='a';
+     * -- 13. 高级绕过尝试：利用字符串内容干扰 WHERE 子句截断
+     * DELETE FROM [dailytools].[dbo].[sys_oper_log] WHERE title = 'some title ORDER BY oper_id' OR 1=1;
+     */
 }
