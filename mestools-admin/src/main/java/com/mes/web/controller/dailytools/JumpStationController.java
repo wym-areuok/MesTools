@@ -6,7 +6,6 @@ import com.mes.common.core.domain.AjaxResult;
 import com.mes.common.core.page.TableDataInfo;
 import com.mes.common.enums.BusinessType;
 
-import com.mes.system.domain.vo.SnInfoVO;
 import com.mes.system.domain.dto.JumpStationDTO;
 import com.mes.system.service.IJumpStationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,7 +54,7 @@ public class JumpStationController extends BaseController {
     public TableDataInfo list(@RequestBody JumpStationDTO queryDTO) {
         try {
             startPage();
-            List<SnInfoVO> list = jumpStationService.list(queryDTO.getSnList(), queryDTO.getDbDataSource(), queryDTO.getJumpType());
+            List<Map<String, Object>> list = jumpStationService.list(queryDTO.getSnList(), queryDTO.getDbDataSource(), queryDTO.getJumpType());
             return getDataTable(list);
         } catch (Exception e) {
             logger.error("查询SN信息失败: ", e);
@@ -89,8 +88,8 @@ public class JumpStationController extends BaseController {
             if (jsDTO.getRemark() == null || jsDTO.getRemark().isEmpty()) {
                 return AjaxResult.error("备注不能为空");
             }
-            String result = jumpStationService.execute(jsDTO.getSnList(), jsDTO.getDbDataSource(), jsDTO.getJumpType(), jsDTO.getStation(), jsDTO.getRemark());
-            return AjaxResult.success("跳站成功", result);
+            List<Map<String, Object>> result = jumpStationService.execute(jsDTO.getSnList(), jsDTO.getDbDataSource(), jsDTO.getJumpType(), jsDTO.getStation(), jsDTO.getRemark());
+            return AjaxResult.success("操作完成", result);
         } catch (Exception e) {
             logger.error("跳站操作失败: ", e);
             return AjaxResult.error("跳站失败: " + e.getMessage());

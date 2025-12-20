@@ -1,7 +1,6 @@
 package com.mes.system.service.impl;
 
 import com.mes.common.exception.ServiceException;
-import com.mes.system.domain.vo.SnInfoVO;
 import com.mes.system.service.IJumpStationService;
 import com.mes.system.service.ISysDictDataService;
 import org.slf4j.Logger;
@@ -10,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -102,7 +100,7 @@ public class JumpStationServiceImpl implements IJumpStationService {
             throw new ServiceException("跳站类型WC配置不完整: " + jumpType);
         }
         String sql;
-        //LR和PCA/RMA/MDS WC字段名称有区别
+        //LR WC字段是PROCESS_CODE 其他的是WC
         if ("LR".equals(jumpType)) {
             sql = "SELECT PROCESS_CODE AS stationCode, PROCESS_NAME AS stationName FROM " + tableName.toUpperCase(Locale.ROOT) + " ORDER BY PROCESS_CODE";
         } else {
@@ -124,17 +122,16 @@ public class JumpStationServiceImpl implements IJumpStationService {
      * @return
      */
     @Override
-    public List<SnInfoVO> list(List<String> snList, String dbDataSource, String jumpType) {
+    public List<Map<String, Object>> list(List<String> snList, String dbDataSource, String jumpType) {
         if (snList == null || snList.isEmpty()) {
             throw new ServiceException("SN列表不能为空!");
-        }
-        if (jumpType == null || jumpType.trim().isEmpty()) {
-            throw new ServiceException("跳站类型不能为空!");
         }
         if (dbDataSource == null || dbDataSource.trim().isEmpty()) {
             throw new ServiceException("数据源不能为空!");
         }
-        // 根据dbSource获取对应的数据源
+        if (jumpType == null || jumpType.trim().isEmpty()) {
+            throw new ServiceException("跳站类型不能为空!");
+        }
         DataSource dataSource;
         try {
             dataSource = getDataSourceByDbName(dbDataSource);
@@ -149,23 +146,24 @@ public class JumpStationServiceImpl implements IJumpStationService {
         // 先把snList处理成用于McbSno IN查询的形式
         String mcbSnoList = String.join(",", Collections.nCopies(snList.size(), "?"));
         StringBuilder snSql = new StringBuilder();
+        //MDS SN是Sno 其他的是McbSno
         if ("MDS".equalsIgnoreCase(jumpType)) {
             snSql.append("SELECT TOP 10000 * FROM ").append(tableName).append(" WHERE Sno IN (").append(mcbSnoList).append(")");
         } else {
             snSql.append("SELECT TOP 10000 * FROM ").append(tableName).append(" WHERE McbSno IN (").append(mcbSnoList).append(")");
         }
         try {
-            List<SnInfoVO> result = template.query(snSql.toString(), snList.toArray(), new BeanPropertyRowMapper<>(SnInfoVO.class));
+            List<Map<String, Object>> result = template.queryForList(snSql.toString(), snList.toArray());
             // 如果查询到数据,则处理并返回
             if (!result.isEmpty()) {
                 // 检查model字段是否一致
                 String modelName = validateModelConsistency(result);
                 // 根据model获取SFC
                 String sfc = getSfcByModel(jumpType, modelName);
-                result.forEach(snInfo -> snInfo.setSfc(sfc));
+                result.forEach(row -> row.put("sfc", sfc));
                 return result;
             }
-            return result; // 返回空列表
+            return result;
         } catch (DataAccessException e) {
             logger.warn("查询数据库 {} 时发生错误: {}", dbDataSource, e.getMessage());
             // 发生异常时抛出ServiceException
@@ -185,11 +183,10 @@ public class JumpStationServiceImpl implements IJumpStationService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public String execute(List<String> snList, String dbDataSource, String jumpType, String station, String remark) {
+    public List<Map<String, Object>> execute(List<String> snList, String dbDataSource, String jumpType, String station, String remark) {
         if (dbDataSource == null || dbDataSource.trim().isEmpty()) {
             throw new ServiceException("数据源不能为空!");
         }
-        // 根据dbSource获取对应的数据源
         DataSource dataSource;
         try {
             dataSource = getDataSourceByDbName(dbDataSource);
@@ -207,14 +204,14 @@ public class JumpStationServiceImpl implements IJumpStationService {
         }
         String mcbSnoList = String.join(",", Collections.nCopies(snList.size(), "?"));
         StringBuilder snSql = new StringBuilder();
-        //MDS和PCA/RMA/LR SN字段名称有区别
+        //MDS SN是Sno 其他的是McbSno
         if ("MDS".equalsIgnoreCase(jumpType)) {
             snSql.append("SELECT TOP 10000 * FROM ").append(tableName).append(" WHERE Sno IN (").append(mcbSnoList).append(")");
         } else {
             snSql.append("SELECT TOP 10000 * FROM ").append(tableName).append(" WHERE McbSno IN (").append(mcbSnoList).append(")");
         }
         try {
-            List<SnInfoVO> result = template.query(snSql.toString(), snList.toArray(), new BeanPropertyRowMapper<>(SnInfoVO.class));
+            List<Map<String, Object>> result = template.queryForList(snSql.toString(), snList.toArray());
             if (!result.isEmpty()) {
                 return executeJumpInDatabase(result, jumpType, station, remark, dbDataSource, tableName, logTableName, template);
             }
@@ -237,50 +234,52 @@ public class JumpStationServiceImpl implements IJumpStationService {
      * @param jdbcTemplate
      * @return
      */
-    @Transactional(rollbackFor = Exception.class)
-    private String executeJumpInDatabase(List<SnInfoVO> snInfoList, String jumpType, String station, String remark, String dbDataSource, String tableName, String logTableName, JdbcTemplate jdbcTemplate) {
-        int successCount = 0;
-        List<String> failedSnList = new ArrayList<>();
-        List<String> processedSnList = new ArrayList<>();
-        for (SnInfoVO snInfo : snInfoList) {
-            String sn = snInfo.getMcbSno();
-            processedSnList.add(sn);
-            // 原始站点 跳站前的站点
-            String originalWc = snInfo.getNwc();
-            // 从SnInfoVO中获取SnoId（SNO表的主键）用来log表插入值
-            int snoId = snInfo.getSnoId();
+    private List<Map<String, Object>> executeJumpInDatabase(List<Map<String, Object>> snInfoList, String jumpType, String station, String remark, String dbDataSource, String tableName, String logTableName, JdbcTemplate jdbcTemplate) {
+        List<Map<String, Object>> resultList = new ArrayList<>();
+        for (Map<String, Object> snInfo : snInfoList) {
+            // 根据跳站类型动态获取列名 MDS需要特殊处理 -NextWc - Wc
+            boolean isMds = "MDS".equalsIgnoreCase(jumpType);
+            String sn = String.valueOf(snInfo.get(isMds ? "Sno" : "McbSno"));
+            String currentWc = String.valueOf(snInfo.get(isMds ? "Wc" : "WC"));
+            String currentNwc = String.valueOf(snInfo.get(isMds ? "NextWc" : "NWC"));
+            Object snoIdObj = snInfo.get(isMds ? "Id" : "SnoId");
+            int snoId = (snoIdObj instanceof Number) ? ((Number) snoIdObj).intValue() : 0;
+
+            Map<String, Object> resultRow = new LinkedHashMap<>();
+            resultRow.put("SN", sn);
+            resultRow.put("原始站点", currentWc);
+            resultRow.put("目标站点", station);
             try {
-                String updateSql = "UPDATE " + tableName + " SET NWC = ?, Udt = GETDATE() " + "WHERE McbSno = ?";
+                String updateSql;
+                if (isMds) {
+                    updateSql = "UPDATE " + tableName + " SET NextWc = ?, Udt = GETDATE() WHERE Sno = ?";
+                } else {
+                    updateSql = "UPDATE " + tableName + " SET NWC = ?, Udt = GETDATE() WHERE McbSno = ?";
+                }
                 int updatedRows = jdbcTemplate.update(updateSql, station, sn);
                 if (updatedRows > 0) {
-                    successCount++;
                     // 记录日志 - 根据跳站类型动态构建SQL
                     if ("PCA".equalsIgnoreCase(jumpType)) {
                         String logSql = "INSERT INTO " + logTableName + " (SnoId, McbSno, Original_WC, Dest_WC, Reason, Creator, Cdt) " + "VALUES (?, ?, ?, ?, ?, ?, GETDATE())";
-                        jdbcTemplate.update(logSql, snoId, sn, originalWc, station, remark, "MESTools");
+                        jdbcTemplate.update(logSql, snoId, sn, currentWc, station, remark, "MESTools");
                     } else if ("RMA".equalsIgnoreCase(jumpType)) {
                         String logSql = "INSERT INTO " + logTableName + " (SnoId, OriginalWC, TestCount, OriginalNWC, NWC, Type, Reason, Remark,Editor, Cdt) " + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())";
-                        jdbcTemplate.update(logSql, snoId, station, 1, originalWc, station, "A", remark, "", "MESTools");
+                        jdbcTemplate.update(logSql, snoId, currentWc, 1, currentNwc, station, "A", remark, "", "MESTools");
                     }
                     // 对于LR,MDS等类型,由于字典中未配置LOG表,logTableName为空,不会执行日志插入(数据库没找到相关跳站Log表)
+                    resultRow.put("结果", "成功");
                 } else {
-                    failedSnList.add(sn);
+                    resultRow.put("结果", "失败");
+                    resultRow.put("信息", "更新0行，SN可能不存在");
                 }
             } catch (DataAccessException e) {
                 logger.error("跳站操作失败,SN: " + sn + " 数据库: " + dbDataSource, e);
-                failedSnList.add(sn);
-                // 发生异常时抛出,触发事务回滚
-                throw new ServiceException("跳站操作失败,SN: " + sn + " 错误: " + e.getMessage());
+                resultRow.put("结果", "失败");
+                resultRow.put("信息", "数据库异常: " + e.getMessage());
             }
+            resultList.add(resultRow);
         }
-        StringBuilder resultMsg = new StringBuilder();
-        resultMsg.append("成功处理 ").append(successCount).append(" 个SN");
-        if (!failedSnList.isEmpty()) {
-            resultMsg.append(",失败SN: ").append(String.join(", ", failedSnList));
-        }
-        // 记录操作日志
-        logger.info("跳站操作完成。处理总数: {}, 成功数: {}, 失败SN: {}", processedSnList.size(), successCount, String.join(", ", failedSnList));
-        return resultMsg.toString();
+        return resultList;
     }
 
     /**
@@ -289,15 +288,20 @@ public class JumpStationServiceImpl implements IJumpStationService {
      * @param result
      * @return
      */
-    private String validateModelConsistency(List<SnInfoVO> result) {
+    private String validateModelConsistency(List<Map<String, Object>> result) {
+        if (result == null || result.isEmpty()) {
+            return null;
+        }
+        // 动态判断SN列名是 McbSno 还是 Sno
+        String snKey = result.get(0).containsKey("McbSno") ? "McbSno" : "Sno";
         // 检查model为空的情况并收集对应的SN
-        List<String> nullModelSnList = result.stream().filter(snInfo -> snInfo.getModel() == null || snInfo.getModel().isEmpty()).map(SnInfoVO::getMcbSno).collect(Collectors.toList());
+        List<String> nullModelSnList = result.stream().filter(row -> row.get("Model") == null || String.valueOf(row.get("Model")).isEmpty()).map(row -> String.valueOf(row.get(snKey))).collect(Collectors.toList());
         if (!nullModelSnList.isEmpty()) {
             throw new ServiceException("以下SN的机型为空: " + String.join(", ", nullModelSnList));
         }
-        String baseModel = result.get(0).getModel();
+        String baseModel = String.valueOf(result.get(0).get("Model"));
         // 查找与基准model不一致的SN
-        List<String> inconsistentSnList = result.stream().filter(snInfo -> !Objects.equals(baseModel, snInfo.getModel())).map(SnInfoVO::getMcbSno).collect(Collectors.toList());
+        List<String> inconsistentSnList = result.stream().filter(row -> !Objects.equals(baseModel, String.valueOf(row.get("Model")))).map(row -> String.valueOf(row.get(snKey))).collect(Collectors.toList());
         if (!inconsistentSnList.isEmpty()) {
             throw new ServiceException("以下SN的机型与其他不一致: " + String.join(", ", inconsistentSnList) + "。基准机型为: " + baseModel);
         }
