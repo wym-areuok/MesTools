@@ -55,7 +55,7 @@ public class JumpStationController extends BaseController {
     public TableDataInfo list(@RequestBody JumpStationDTO queryDTO) {
         try {
             startPage();
-            List<SnInfoVO> list = jumpStationService.list(queryDTO.getSnList(), queryDTO.getJumpType(), queryDTO.getDbDataSource());
+            List<SnInfoVO> list = jumpStationService.list(queryDTO.getSnList(), queryDTO.getDbDataSource(), queryDTO.getJumpType());
             return getDataTable(list);
         } catch (Exception e) {
             logger.error("查询SN信息失败: ", e);
@@ -77,19 +77,19 @@ public class JumpStationController extends BaseController {
             if (jsDTO.getSnList() == null || jsDTO.getSnList().isEmpty()) {
                 return AjaxResult.error("SN列表不能为空");
             }
-            if (jsDTO.getStation() == null || jsDTO.getStation().isEmpty()) {
-                return AjaxResult.error("目标站点不能为空");
+            if (jsDTO.getDbDataSource() == null || jsDTO.getDbDataSource().isEmpty()) {
+                return AjaxResult.error("数据源不能为空");
             }
             if (jsDTO.getJumpType() == null || jsDTO.getJumpType().isEmpty()) {
                 return AjaxResult.error("跳站类型不能为空");
             }
+            if (jsDTO.getStation() == null || jsDTO.getStation().isEmpty()) {
+                return AjaxResult.error("目标站点不能为空");
+            }
             if (jsDTO.getRemark() == null || jsDTO.getRemark().isEmpty()) {
                 return AjaxResult.error("备注不能为空");
             }
-            if (jsDTO.getDbDataSource() == null || jsDTO.getDbDataSource().isEmpty()) {
-                return AjaxResult.error("数据源不能为空");
-            }
-            String result = jumpStationService.execute(jsDTO.getSnList(), jsDTO.getStation(), jsDTO.getJumpType(), jsDTO.getRemark(), jsDTO.getDbDataSource());
+            String result = jumpStationService.execute(jsDTO.getSnList(), jsDTO.getDbDataSource(), jsDTO.getJumpType(), jsDTO.getStation(), jsDTO.getRemark());
             return AjaxResult.success("跳站成功", result);
         } catch (Exception e) {
             logger.error("跳站操作失败: ", e);

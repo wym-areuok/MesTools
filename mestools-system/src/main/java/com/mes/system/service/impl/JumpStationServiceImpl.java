@@ -101,7 +101,13 @@ public class JumpStationServiceImpl implements IJumpStationService {
         if (tableName == null || tableName.isEmpty()) {
             throw new ServiceException("跳站类型WC配置不完整: " + jumpType);
         }
-        String sql = "SELECT WC AS stationCode, Description AS stationName FROM " + tableName.toUpperCase(Locale.ROOT) + " ORDER BY WC";
+        String sql;
+        //LR和PCA/RMA/MDS WC字段名称有区别
+        if ("LR".equals(jumpType)) {
+            sql = "SELECT PROCESS_CODE AS stationCode, PROCESS_NAME AS stationName FROM " + tableName.toUpperCase(Locale.ROOT) + " ORDER BY PROCESS_CODE";
+        } else {
+            sql = "SELECT WC AS stationCode, Description AS stationName FROM " + tableName.toUpperCase(Locale.ROOT) + " ORDER BY WC";
+        }
         try {
             return jdbcTemplate.queryForList(sql);
         } catch (DataAccessException e) {
@@ -113,12 +119,12 @@ public class JumpStationServiceImpl implements IJumpStationService {
      * 查询SN的信息
      *
      * @param snList
-     * @param jumpType
      * @param dbDataSource
+     * @param jumpType
      * @return
      */
     @Override
-    public List<SnInfoVO> list(List<String> snList, String jumpType, String dbDataSource) {
+    public List<SnInfoVO> list(List<String> snList, String dbDataSource, String jumpType) {
         if (snList == null || snList.isEmpty()) {
             throw new ServiceException("SN列表不能为空!");
         }
@@ -143,7 +149,11 @@ public class JumpStationServiceImpl implements IJumpStationService {
         // 先把snList处理成用于McbSno IN查询的形式
         String mcbSnoList = String.join(",", Collections.nCopies(snList.size(), "?"));
         StringBuilder snSql = new StringBuilder();
-        snSql.append("SELECT TOP 10000 * FROM ").append(tableName).append(" WHERE McbSno IN (").append(mcbSnoList).append(")");
+        if ("MDS".equalsIgnoreCase(jumpType)) {
+            snSql.append("SELECT TOP 10000 * FROM ").append(tableName).append(" WHERE Sno IN (").append(mcbSnoList).append(")");
+        } else {
+            snSql.append("SELECT TOP 10000 * FROM ").append(tableName).append(" WHERE McbSno IN (").append(mcbSnoList).append(")");
+        }
         try {
             List<SnInfoVO> result = template.query(snSql.toString(), snList.toArray(), new BeanPropertyRowMapper<>(SnInfoVO.class));
             // 如果查询到数据,则处理并返回
@@ -167,15 +177,15 @@ public class JumpStationServiceImpl implements IJumpStationService {
      * 执行跳站
      *
      * @param snList
-     * @param station
-     * @param jumpType
-     * @param remark
      * @param dbDataSource
+     * @param jumpType
+     * @param station
+     * @param remark
      * @return
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public String execute(List<String> snList, String station, String jumpType, String remark, String dbDataSource) {
+    public String execute(List<String> snList, String dbDataSource, String jumpType, String station, String remark) {
         if (dbDataSource == null || dbDataSource.trim().isEmpty()) {
             throw new ServiceException("数据源不能为空!");
         }
@@ -197,11 +207,16 @@ public class JumpStationServiceImpl implements IJumpStationService {
         }
         String mcbSnoList = String.join(",", Collections.nCopies(snList.size(), "?"));
         StringBuilder snSql = new StringBuilder();
-        snSql.append("SELECT TOP 10000 * FROM ").append(tableName).append(" WHERE McbSno IN (").append(mcbSnoList).append(")");
+        //MDS和PCA/RMA/LR SN字段名称有区别
+        if ("MDS".equalsIgnoreCase(jumpType)) {
+            snSql.append("SELECT TOP 10000 * FROM ").append(tableName).append(" WHERE Sno IN (").append(mcbSnoList).append(")");
+        } else {
+            snSql.append("SELECT TOP 10000 * FROM ").append(tableName).append(" WHERE McbSno IN (").append(mcbSnoList).append(")");
+        }
         try {
             List<SnInfoVO> result = template.query(snSql.toString(), snList.toArray(), new BeanPropertyRowMapper<>(SnInfoVO.class));
             if (!result.isEmpty()) {
-                return executeJumpInDatabase(result, station, remark, dbDataSource, tableName, logTableName, template);
+                return executeJumpInDatabase(result, jumpType, station, remark, dbDataSource, tableName, logTableName, template);
             }
         } catch (DataAccessException e) {
             logger.warn("查询数据库 {} 时发生错误: {}", dbDataSource, e.getMessage());
@@ -223,7 +238,7 @@ public class JumpStationServiceImpl implements IJumpStationService {
      * @return
      */
     @Transactional(rollbackFor = Exception.class)
-    private String executeJumpInDatabase(List<SnInfoVO> snInfoList, String station, String remark, String dbDataSource, String tableName, String logTableName, JdbcTemplate jdbcTemplate) {
+    private String executeJumpInDatabase(List<SnInfoVO> snInfoList, String jumpType, String station, String remark, String dbDataSource, String tableName, String logTableName, JdbcTemplate jdbcTemplate) {
         int successCount = 0;
         List<String> failedSnList = new ArrayList<>();
         List<String> processedSnList = new ArrayList<>();
@@ -239,9 +254,15 @@ public class JumpStationServiceImpl implements IJumpStationService {
                 int updatedRows = jdbcTemplate.update(updateSql, station, sn);
                 if (updatedRows > 0) {
                     successCount++;
-                    // 记录日志 - 使用SN表的主键ID作为LOG表的SnoId字段
-                    String logSql = "INSERT INTO " + logTableName + " (SnoId, McbSno, Original_WC, Dest_WC, Reason, Creator, Cdt) " + "VALUES (?, ?, ?, ?, ?, ?, GETDATE())";
-                    jdbcTemplate.update(logSql, snoId, sn, originalWc, station, remark, "MESTools");
+                    // 记录日志 - 根据跳站类型动态构建SQL
+                    if ("PCA".equalsIgnoreCase(jumpType)) {
+                        String logSql = "INSERT INTO " + logTableName + " (SnoId, McbSno, Original_WC, Dest_WC, Reason, Creator, Cdt) " + "VALUES (?, ?, ?, ?, ?, ?, GETDATE())";
+                        jdbcTemplate.update(logSql, snoId, sn, originalWc, station, remark, "MESTools");
+                    } else if ("RMA".equalsIgnoreCase(jumpType)) {
+                        String logSql = "INSERT INTO " + logTableName + " (SnoId, OriginalWC, TestCount, OriginalNWC, NWC, Type, Reason, Remark,Editor, Cdt) " + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())";
+                        jdbcTemplate.update(logSql, snoId, station, 1, originalWc, station, "A", remark, "", "MESTools");
+                    }
+                    // 对于LR,MDS等类型,由于字典中未配置LOG表,logTableName为空,不会执行日志插入(数据库没找到相关跳站Log表)
                 } else {
                     failedSnList.add(sn);
                 }
