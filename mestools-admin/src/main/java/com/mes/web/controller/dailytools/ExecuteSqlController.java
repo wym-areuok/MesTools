@@ -47,36 +47,32 @@ public class ExecuteSqlController extends BaseController {
     private static final List<Pattern> ALWAYS_TRUE_PATTERNS = Arrays.asList(
             "\\b1\\s*=\\s*1\\b",
             "\\b2\\s*>\\s*1\\b",
-            "'(?:''|[^'])*'\\s*=\\s*'(?:''|[^'])*'"
+            "N?'(?:''|[^'])*'\\s*=\\s*N?'(?:''|[^'])*'"
     ).stream().map(p -> Pattern.compile(p, Pattern.CASE_INSENSITIVE)).collect(Collectors.toList());
 
     private static final int MAX_SELECT_ROWS = 1000;
 
-    /**
-     * 通用分词正则：用于提取关键字并忽略注释/字符串
-     */
+    //通用分词正则：用于提取关键字并忽略注释/字符串(支持 N'Unicode'格式)
     private static final Pattern GENERAL_TOKEN_PATTERN = Pattern.compile(
-            "(--[^\\r\\n]*)|(/\\*[\\s\\S]*?\\*/)|('(?:''|[^'])*')|(\\[[^\\]]*\\])|(;)|\\b(SELECT|UPDATE|INSERT|DELETE|DROP|TRUNCATE|ALTER|CREATE|RENAME)\\b",
+            "(--[^\\r\\n]*)|(/\\*[\\s\\S]*?\\*/)|(N?'(?:''|[^'])*')|(\\[[^\\]]*\\])|(;)|\\b(SELECT|UPDATE|INSERT|DELETE|DROP|TRUNCATE|ALTER|CREATE|RENAME)\\b",
             Pattern.CASE_INSENSITIVE);
 
     /**
      * SELECT TOP N 校验正则
      * Group 1: 单行注释 (--...)
      * Group 2: 多行注释 (/*...*\/)
-     * Group 3: 字符串 ('...')
+     * Group 3: 字符串 (N'...' 或 '...')
      * Group 4: 方括号标识符 ([...])
      * Group 5: SELECT 关键字 (仅匹配单词边界)
-     * Group 6: TOP N 中的 N (如果存在)
+     * Group 6: TOP N 中的 N (捕获数字 \d+)
      */
     private static final Pattern SELECT_TOP_PATTERN = Pattern.compile(
-            "(--[^\\r\\n]*)|(/\\*[\\s\\S]*?\\*/)|('(?:''|[^'])*')|(\\[[^\\]]*\\])|(\\bSELECT\\b)(?:\\s+(?:DISTINCT|ALL))?(?:\\s+TOP(?:\\s+|\\s*\\(\\s*)(\\d+))?",
+            "(--[^\\r\\n]*)|(/\\*[\\s\\S]*?\\*/)|(N?'(?:''|[^'])*')|(\\[[^\\]]*\\])|(\\bSELECT\\b)(?:\\s+(?:DISTINCT|ALL))?(?:\\s+TOP(?:\\s+|\\s*\\(\\s*)(\\d+))?",
             Pattern.CASE_INSENSITIVE);
 
-    /**
-     * WHERE 关键字查找正则 (用于精准定位 WHERE 子句)
-     */
+    //WHERE 关键字查找正则 (用于精准定位WHERE子句)
     private static final Pattern WHERE_PATTERN = Pattern.compile(
-            "(--[^\\r\\n]*)|(/\\*[\\s\\S]*?\\*/)|('(?:''|[^'])*')|(\\[[^\\]]*\\])|(\\bWHERE\\b)",
+            "(--[^\\r\\n]*)|(/\\*[\\s\\S]*?\\*/)|(N?'(?:''|[^'])*')|(\\[[^\\]]*\\])|(\\bWHERE\\b)",
             Pattern.CASE_INSENSITIVE);
 
     @Autowired
@@ -202,7 +198,7 @@ public class ExecuteSqlController extends BaseController {
     /**
      * SQL 安全校验核心逻辑：
      * 1. 预处理：去除 BOM 头及首尾空格,防止字符编码绕过。
-     * 2. 智能分词：使用正则解析 SQL,自动忽略注释,字符串常量及方括号标识符,精准提取有效关键字。
+     * 2. 智能分词：使用正则解析 SQL,自动忽略注释,字符串常量(含 N'Unicode')及方括号标识符,精准提取有效关键字。
      * 3. 防批处理：检测分号 (;),强制禁止一次性执行多条 SQL 语句。
      * 4. 关键字校验：
      * 验证首个有效关键字是否匹配当前操作类型。
@@ -349,7 +345,7 @@ public class ExecuteSqlController extends BaseController {
     private String stripSubsequentClauses(String whereClause) {
         // 使用正则查找关键字,确保不匹配字符串或注释中的内容
         // Group 5 是查找的截断关键字
-        Pattern p = Pattern.compile("(--[^\\r\\n]*)|(/\\*[\\s\\S]*?\\*/)|('(?:''|[^'])*')|(\\[[^\\]]*\\])|\\b(ORDER\\s+BY|GROUP\\s+BY|HAVING|LIMIT|OFFSET)\\b", Pattern.CASE_INSENSITIVE);
+        Pattern p = Pattern.compile("(--[^\\r\\n]*)|(/\\*[\\s\\S]*?\\*/)|(N?'(?:''|[^'])*')|(\\[[^\\]]*\\])|\\b(ORDER\\s+BY|GROUP\\s+BY|HAVING|LIMIT|OFFSET)\\b", Pattern.CASE_INSENSITIVE);
         Matcher m = p.matcher(whereClause);
         while (m.find()) {
             if (m.group(5) != null) {
