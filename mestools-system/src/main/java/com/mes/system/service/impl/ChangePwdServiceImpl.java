@@ -102,7 +102,6 @@ public class ChangePwdServiceImpl implements IChangePwdService {
             throw new ServiceException(e.getMessage());
         }
         JdbcTemplate template = new JdbcTemplate(dataSource);
-
         // 从fis_web_pwd_info字典获取label为FISWEB_DB_TABLE的value作为tableName
         // 获取表名
         String tableName = dictDataService.selectDictByTypeAndLabel("fis_web_pwd_info", "FISWEB_DB_TABLE");
@@ -119,7 +118,7 @@ public class ChangePwdServiceImpl implements IChangePwdService {
                 throw new ServiceException("FisWeb账号 [" + fisNumber + "] 存在多条记录,无法修改密码");
             }
             //懒得配置字典了直接PCA..dbo.ComplexHash(?,?)写固定调用
-            String updateSql = "UPDATE " + tableName + " SET password = PCA..dbo.(Account, ?), Udt = GETDATE() WHERE Account = ?";
+            String updateSql = "UPDATE " + tableName + " SET Pwd = PCA.dbo.ComplexHash(Account, ?), Udt = GETDATE() WHERE Account = ?";
             int result = template.update(updateSql, password, fisNumber);
             return result > 0;
         } catch (DataAccessException e) {
