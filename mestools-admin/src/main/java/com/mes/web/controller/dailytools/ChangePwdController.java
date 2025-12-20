@@ -8,6 +8,8 @@ import com.mes.common.enums.BusinessType;
 import com.mes.common.utils.SecurityUtils;
 import com.mes.system.domain.dto.ChangePwdDTO;
 import com.mes.system.service.IChangePwdService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -22,6 +24,7 @@ import javax.validation.Valid;
  * @CreateTime: 2025-12-07
  * @Description: 修改FIS账号密码的Controller
  */
+@Api(tags = "FIS账号改密")
 @RestController
 @RequestMapping("/dailytools/changePwd")
 public class ChangePwdController extends BaseController {
@@ -34,6 +37,7 @@ public class ChangePwdController extends BaseController {
      * @param pwdDTO
      * @return
      */
+    @ApiOperation("修改当前用户密码")
     @PreAuthorize("@ss.hasPermi('dailyTools:changePwd:loginFisNo')")
     @Log(title = "FisWeb改密-当前用户", businessType = BusinessType.UPDATE)
     @PutMapping("/current")
@@ -59,6 +63,7 @@ public class ChangePwdController extends BaseController {
      * @param pwdDTO
      * @return
      */
+    @ApiOperation("修改其他用户密码")
     @PreAuthorize("@ss.hasPermi('dailyTools:changePwd:otherFisNo')")
     @Log(title = "FisWeb改密-其他用户", businessType = BusinessType.UPDATE)
     @PutMapping("/other")

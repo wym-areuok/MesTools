@@ -8,6 +8,8 @@ import com.mes.common.enums.BusinessType;
 
 import com.mes.system.domain.dto.JumpStationDTO;
 import com.mes.system.service.IJumpStationService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +22,7 @@ import java.util.Map;
  * @CreateTime: 2025-11-27
  * @Description: 板卡跳站的Controller
  */
+@Api(tags = "板卡跳站")
 @RestController
 @RequestMapping("/dailytools/jumpStation")
 public class JumpStationController extends BaseController {
@@ -32,6 +35,7 @@ public class JumpStationController extends BaseController {
      * @param jumpType
      * @return
      */
+    @ApiOperation("获取站点列表")
     @GetMapping("/getStationList")
     public AjaxResult getStationList(@RequestParam String jumpType) {
         try {
@@ -49,6 +53,7 @@ public class JumpStationController extends BaseController {
      * @param queryDTO
      * @return
      */
+    @ApiOperation("查询SN信息")
     @PreAuthorize("@ss.hasPermi('dailyTools:jumpStation:query')")
     @PostMapping("/list")
     public TableDataInfo list(@RequestBody JumpStationDTO queryDTO) {
@@ -68,6 +73,7 @@ public class JumpStationController extends BaseController {
      * @param jsDTO
      * @return
      */
+    @ApiOperation("执行跳站")
     @Log(title = "板卡跳站", businessType = BusinessType.UPDATE)
     @PreAuthorize("@ss.hasPermi('dailyTools:jumpStation:execute')")
     @PostMapping("/execute")

@@ -5,6 +5,8 @@ import com.mes.common.core.domain.AjaxResult;
 import com.mes.common.enums.BusinessType;
 import com.mes.common.utils.SecurityUtils;
 import com.mes.system.service.IStringToolService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +24,7 @@ import java.util.Map;
  * @CreateTime: 2025-11-21
  * @Description: 字符串工具的Controller
  */
+@Api(tags = "字符串工具")
 @RestController
 @RequestMapping("/dailytools/stringtool")
 public class StringToolController {
@@ -34,6 +37,7 @@ public class StringToolController {
      * @param data
      * @return
      */
+    @ApiOperation("执行字符串处理")
     @PreAuthorize("@ss.hasPermi('dailyTools:stringTool:execute')")
     @PostMapping("/execute")
     public AjaxResult execute(@RequestBody Map<String, Object> data) {
@@ -55,6 +59,7 @@ public class StringToolController {
      *
      * @param response
      */
+    @ApiOperation("下载模版文件")
     @PreAuthorize("@ss.hasPermi('dailyTools:stringTool:download')")
     @Log(title = "字符串工具", businessType = BusinessType.EXPORT)
     @PostMapping("/downloadTemplate")
@@ -68,6 +73,7 @@ public class StringToolController {
      * @param file
      * @return
      */
+    @ApiOperation("解析Excel写入数据库")
     @PreAuthorize("@ss.hasPermi('dailyTools:stringTool:upload')")
     @Log(title = "字符串工具", businessType = BusinessType.IMPORT)
     @PostMapping("/upload")

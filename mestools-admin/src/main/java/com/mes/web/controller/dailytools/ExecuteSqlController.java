@@ -7,10 +7,14 @@ import com.mes.common.enums.BusinessType;
 import com.mes.system.domain.ValidationResult;
 import com.mes.system.domain.dto.ExecuteSqlDTO;
 import com.mes.system.service.IExecuteSqlService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,8 +37,9 @@ import java.util.stream.Collectors;
  * @CreateTime: 2025-12-10
  * @Description: 执行SQL的Controller
  */
+@Api(tags = "SQL执行工具")
 @RestController
-@RequestMapping("/dailyTools/executeSql")
+@RequestMapping("/dailytools/executeSql")
 public class ExecuteSqlController extends BaseController {
 
     private static final List<String> DANGEROUS_KEYWORDS = Arrays.asList("DROP", "TRUNCATE", "ALTER", "CREATE", "RENAME");
@@ -83,8 +88,9 @@ public class ExecuteSqlController extends BaseController {
      * @param request
      * @return
      */
+    @ApiOperation("执行查询")
     @PreAuthorize("@ss.hasPermi('dailyTools:executeSql:query')")
-    @Log(title = "SQL执行工具", businessType = BusinessType.SELECT)
+    @Log(title = "SQL执行工具", businessType = BusinessType.SELECT, isSaveResponseData = false)
     @PostMapping("/query")
     public AjaxResult executeQuery(@RequestBody ExecuteSqlDTO request) {
         Future<List<Map<String, Object>>> future = null;
@@ -112,9 +118,10 @@ public class ExecuteSqlController extends BaseController {
      * @param request
      * @return
      */
+    @ApiOperation("执行更新")
     @PreAuthorize("@ss.hasPermi('dailyTools:executeSql:update')")
     @Log(title = "SQL执行工具", businessType = BusinessType.UPDATE)
-    @PostMapping("/update")
+    @PutMapping("/update")
     public AjaxResult executeUpdate(@RequestBody ExecuteSqlDTO request) {
         Future<Integer> future = null;
         try {
@@ -140,6 +147,7 @@ public class ExecuteSqlController extends BaseController {
      * @param request
      * @return
      */
+    @ApiOperation("执行插入")
     @PreAuthorize("@ss.hasPermi('dailyTools:executeSql:insert')")
     @Log(title = "SQL执行工具", businessType = BusinessType.INSERT)
     @PostMapping("/insert")
@@ -168,9 +176,10 @@ public class ExecuteSqlController extends BaseController {
      * @param request
      * @return
      */
+    @ApiOperation("执行删除")
     @PreAuthorize("@ss.hasPermi('dailyTools:executeSql:delete')")
     @Log(title = "SQL执行工具", businessType = BusinessType.DELETE)
-    @PostMapping("/delete")
+    @DeleteMapping("/delete")
     public AjaxResult executeDelete(@RequestBody ExecuteSqlDTO request) {
         Future<Integer> future = null;
         try {

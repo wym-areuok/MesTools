@@ -9,6 +9,8 @@ import com.mes.common.utils.SecurityUtils;
 import com.mes.common.utils.poi.ExcelUtil;
 import com.mes.system.domain.QueryInfo;
 import com.mes.system.service.IQueryInfoService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +25,7 @@ import java.util.List;
  * @CreateTime: 2025-12-10
  * @Description: 资料查询的Controller
  */
+@Api(tags = "资料查询")
 @RestController
 @RequestMapping("/dailytools/queryInfo")
 public class QueryInfoController extends BaseController {
@@ -36,6 +39,7 @@ public class QueryInfoController extends BaseController {
      * @param queryInfo
      * @return
      */
+    @ApiOperation("查询资料列表")
     @PreAuthorize("@ss.hasPermi('dailyTools:queryInfo:list')")
     @GetMapping("/list")
     public TableDataInfo list(QueryInfo queryInfo) {
@@ -50,6 +54,7 @@ public class QueryInfoController extends BaseController {
      * @param infoId
      * @return
      */
+    @ApiOperation("获取资料详细信息")
     @PreAuthorize("@ss.hasPermi('dailyTools:queryInfo:query')")
     @GetMapping(value = "/{infoId}")
     public AjaxResult getInfo(@PathVariable("infoId") Integer infoId) {
@@ -62,6 +67,7 @@ public class QueryInfoController extends BaseController {
      * @param queryInfo
      * @return
      */
+    @ApiOperation("新增资料")
     @PreAuthorize("@ss.hasPermi('dailyTools:queryInfo:add')")
     @Log(title = "信息查询", businessType = BusinessType.INSERT)
     @PostMapping
@@ -76,6 +82,7 @@ public class QueryInfoController extends BaseController {
      * @param queryInfo
      * @return
      */
+    @ApiOperation("修改资料")
     @PreAuthorize("@ss.hasPermi('dailyTools:queryInfo:edit')")
     @Log(title = "信息查询", businessType = BusinessType.UPDATE)
     @PutMapping
@@ -90,6 +97,7 @@ public class QueryInfoController extends BaseController {
      * @param infoIds
      * @return
      */
+    @ApiOperation("删除资料")
     @PreAuthorize("@ss.hasRole('admin') and @ss.hasPermi('dailyTools:queryInfo:remove')")
     @Log(title = "信息查询", businessType = BusinessType.DELETE)
     @DeleteMapping("/{infoIds}")
@@ -103,6 +111,7 @@ public class QueryInfoController extends BaseController {
      * @param response
      * @param queryInfo
      */
+    @ApiOperation("导出资料")
     @PreAuthorize("@ss.hasPermi('dailyTools:queryInfo:export')")
     @Log(title = "信息查询", businessType = BusinessType.EXPORT)
     @PostMapping("/export")
@@ -115,6 +124,7 @@ public class QueryInfoController extends BaseController {
     /**
      * 下载导入模板
      */
+    @ApiOperation("下载导入模板")
     @PreAuthorize("@ss.hasPermi('dailyTools:queryInfo:import')")
     @Log(title = "信息查询", businessType = BusinessType.EXPORT)
     @PostMapping("/importTemplate")
@@ -126,6 +136,7 @@ public class QueryInfoController extends BaseController {
     /**
      * 导入资料库信息
      */
+    @ApiOperation("导入资料")
     @PreAuthorize("@ss.hasPermi('dailyTools:queryInfo:import')")
     @Log(title = "信息查询", businessType = BusinessType.IMPORT)
     @PostMapping("/importData")
