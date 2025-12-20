@@ -21,6 +21,7 @@
         <druid.version>1.2.27</druid.version>
         <yauaa.version>7.32.0</yauaa.version>
         <swagger.version>3.0.0</swagger.version>
+        <swagger.annotations.version>1.6.2</swagger.annotations.version>
         <kaptcha.version>2.3.3</kaptcha.version>
         <pagehelper.boot.version>1.4.7</pagehelper.boot.version>
         <fastjson.version>2.0.60</fastjson.version>
@@ -138,6 +139,13 @@
                         <artifactId>swagger-models</artifactId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+
+            <!-- Swagger注解依赖管理 -->
+            <dependency>
+                <groupId>io.swagger</groupId>
+                <artifactId>swagger-annotations</artifactId>
+                <version>${swagger.annotations.version}</version>
             </dependency>
 
             <!-- io常用工具类 -->

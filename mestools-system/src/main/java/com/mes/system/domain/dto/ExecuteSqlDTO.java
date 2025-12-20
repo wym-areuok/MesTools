@@ -1,8 +1,8 @@
 package com.mes.system.domain.dto;
 
-import com.mes.common.core.domain.BaseEntity;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 /**
  * @Author: weiyiming
@@ -10,15 +10,12 @@ import lombok.EqualsAndHashCode;
  * @Description: 执行SQL的DTO
  */
 @Data
-@EqualsAndHashCode(callSuper = true)
-public class ExecuteSqlDTO extends BaseEntity {
-    /**
-     * 数据源
-     */
+@ApiModel(value = "ExecuteSqlDTO", description = "SQL执行参数")
+public class ExecuteSqlDTO {
+
+    @ApiModelProperty(value = "数据源", required = true, example = "LOCALHOST")
     private String dbDataSource;
 
-    /**
-     * SQL内容
-     */
+    @ApiModelProperty(value = "SQL语句内容", required = true, example = "没有例子自己写")
     private String sqlContent;
 }

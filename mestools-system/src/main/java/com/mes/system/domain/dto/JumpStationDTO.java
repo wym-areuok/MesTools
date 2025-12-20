@@ -1,5 +1,7 @@
 package com.mes.system.domain.dto;
 
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import java.util.List;
@@ -10,15 +12,21 @@ import java.util.List;
  * @Description: 跳站业务相关DTO
  */
 @Data
+@ApiModel(value = "JumpStationDTO", description = "板卡跳站参数")
 public class JumpStationDTO {
-    /*SN列表*/
+
+    @ApiModelProperty(value = "SN列表", required = true)
     private List<String> snList;
-    /*数据源*/
+
+    @ApiModelProperty(value = "数据源", required = true, example = "LOCALHOST")
     private String dbDataSource;
-    /*站点*/
-    private String station;
-    /*跳站类型*/
+
+    @ApiModelProperty(value = "跳站类型", required = true, example = "PCA")
     private String jumpType;
-    /*跳站原因*/
+
+    @ApiModelProperty(value = "目标站点", example = "00")
+    private String station;
+
+    @ApiModelProperty(value = "备注", example = "测试跳站")
     private String remark;
 }
