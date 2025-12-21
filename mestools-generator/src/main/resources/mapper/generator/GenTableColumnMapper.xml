@@ -43,45 +43,43 @@
 
     <select id="selectDbTableColumnsByName" parameterType="String" resultMap="GenTableColumnResult">
         SELECT
-        c.COLUMN_NAME AS column_name,
+        CAST(c.name AS NVARCHAR(200)) AS column_name,
+        (
         CASE
-        WHEN (c.IS_NULLABLE = 'NO' AND c.COLUMN_NAME != t.COLUMN_NAME) THEN '1'
-        ELSE '0'
-        END AS is_required,
-        CASE
-        WHEN c.COLUMN_NAME = t.COLUMN_NAME THEN '1'
-        ELSE '0'
-        END AS is_pk,
-        c.ORDINAL_POSITION AS sort,
-        ISNULL(ep.value, '') AS column_comment,
-        CASE
-        WHEN COLUMNPROPERTY(OBJECT_ID(c.TABLE_SCHEMA + '.' + c.TABLE_NAME), c.COLUMN_NAME, 'IsIdentity') = 1 THEN '1'
-        ELSE '0'
-        END AS is_increment,
-        c.DATA_TYPE +
-        CASE
-        WHEN c.CHARACTER_MAXIMUM_LENGTH IS NOT NULL AND c.DATA_TYPE LIKE '%char%'
-        THEN '(' + CAST(c.CHARACTER_MAXIMUM_LENGTH AS VARCHAR) + ')'
-        WHEN c.DATA_TYPE IN ('decimal', 'numeric')
-        THEN '(' + CAST(c.NUMERIC_PRECISION AS VARCHAR) + ',' + CAST(c.NUMERIC_SCALE AS VARCHAR) + ')'
-        ELSE ''
-        END AS column_type
-        FROM INFORMATION_SCHEMA.COLUMNS c
-        LEFT JOIN (
-        SELECT k.COLUMN_NAME, k.TABLE_NAME, k.TABLE_SCHEMA
-        FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
-        INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
-        ON k.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-        AND k.TABLE_NAME = tc.TABLE_NAME
-        AND k.TABLE_SCHEMA = tc.TABLE_SCHEMA
-        WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
-        ) t ON c.COLUMN_NAME = t.COLUMN_NAME AND c.TABLE_NAME = t.TABLE_NAME AND c.TABLE_SCHEMA = t.TABLE_SCHEMA
-        LEFT JOIN sys.columns sc ON sc.object_id = OBJECT_ID(c.TABLE_SCHEMA + '.' + c.TABLE_NAME) AND sc.name =
-        c.COLUMN_NAME
-        LEFT JOIN sys.extended_properties ep ON ep.major_id = OBJECT_ID(c.TABLE_SCHEMA + '.' + c.TABLE_NAME) AND
-        ep.minor_id = sc.column_id AND ep.name = 'MS_Description'
-        WHERE c.TABLE_CATALOG = DB_NAME() AND c.TABLE_NAME = #{tableName}
-        ORDER BY c.ORDINAL_POSITION
+        WHEN t.name IN ('numeric', 'decimal')
+        THEN t.name + '(' + CAST(c.precision AS VARCHAR) + ',' + CAST(c.scale AS VARCHAR) + ')'
+        WHEN t.name IN ('nvarchar', 'varchar', 'char', 'nchar') AND c.max_length != -1
+        THEN t.name + '(' + CAST(CASE WHEN t.name LIKE 'n%' THEN c.max_length/2 ELSE c.max_length END AS VARCHAR) + ')'
+        WHEN t.name IN ('nvarchar', 'varchar', 'char', 'nchar') AND c.max_length = -1
+        THEN t.name + '(max)'
+        ELSE t.name
+        END
+        ) AS column_type,
+        CAST(ep.value AS NVARCHAR(500)) AS column_comment,
+        (CASE WHEN c.is_nullable = 0 THEN '1' ELSE '0' END) AS is_required,
+        (
+        SELECT CASE WHEN count(1) > 0 THEN '1' ELSE '0' END
+        FROM sys.indexes i
+        JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+        WHERE i.is_primary_key = 1 AND i.object_id = c.object_id AND ic.column_id = c.column_id
+        ) AS is_pk,
+        c.column_id AS sort,
+        (CASE WHEN c.is_identity = 1 THEN '1' ELSE '0' END) AS is_increment,
+        '0' AS is_insert,
+        '0' AS is_edit,
+        '0' AS is_list,
+        '0' AS is_query
+        FROM
+        sys.columns c
+        INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
+        LEFT JOIN sys.extended_properties ep ON c.object_id = ep.major_id AND c.column_id = ep.minor_id AND ep.name =
+        'MS_Description'
+        LEFT JOIN sys.tables st ON c.object_id = st.object_id
+        WHERE
+        st.name = #{tableName}
+        AND st.schema_id = SCHEMA_ID()
+        ORDER BY
+        c.column_id
     </select>
 
     <insert id="insertGenTableColumn" parameterType="GenTableColumn" useGeneratedKeys="true" keyProperty="columnId">

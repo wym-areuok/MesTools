@@ -83,13 +83,14 @@
     <select id="selectDbTableList" parameterType="GenTable" resultMap="GenTableResult">
         SELECT
         t.name AS table_name,
-        ISNULL(ep.value, '') AS table_comment,
+        CAST(ep.value AS NVARCHAR(500)) AS table_comment,
         t.create_date AS create_time,
         t.modify_date AS update_time
         FROM sys.tables t
         LEFT JOIN sys.extended_properties ep ON ep.major_id = t.object_id AND ep.minor_id = 0 AND ep.name =
         'MS_Description'
-        WHERE t.name NOT LIKE 'qrtz[_]%' AND t.name NOT LIKE 'gen[_]%'
+        WHERE lower(t.name) NOT LIKE 'qrtz[_]%' AND lower(t.name) NOT LIKE 'gen[_]%'
+        AND t.schema_id = SCHEMA_ID()
         AND t.name NOT IN (select table_name from gen_table)
         <if test="tableName != null and tableName != ''">
             AND lower(t.name) like lower(concat('%', #{tableName}, '%'))
@@ -110,13 +111,14 @@
     <select id="selectDbTableListByNames" resultMap="GenTableResult">
         SELECT
         t.name AS table_name,
-        ISNULL(ep.value, '') AS table_comment,
+        CAST(ep.value AS NVARCHAR(500)) AS table_comment,
         t.create_date AS create_time,
         t.modify_date AS update_time
         FROM sys.tables t
         LEFT JOIN sys.extended_properties ep ON ep.major_id = t.object_id AND ep.minor_id = 0 AND ep.name =
         'MS_Description'
-        WHERE t.name NOT LIKE 'qrtz[_]%' AND t.name NOT LIKE 'gen[_]%'
+        WHERE lower(t.name) NOT LIKE 'qrtz[_]%' AND lower(t.name) NOT LIKE 'gen[_]%'
+        AND t.schema_id = SCHEMA_ID()
         AND t.name IN
         <foreach collection="array" item="name" open="(" separator="," close=")">
             #{name}
@@ -126,13 +128,14 @@
     <select id="selectTableByName" parameterType="String" resultMap="GenTableResult">
         SELECT
         t.name AS table_name,
-        ISNULL(ep.value, '') AS table_comment,
+        CAST(ep.value AS NVARCHAR(500)) AS table_comment,
         t.create_date AS create_time,
         t.modify_date AS update_time
         FROM sys.tables t
         LEFT JOIN sys.extended_properties ep ON ep.major_id = t.object_id AND ep.minor_id = 0 AND ep.name =
         'MS_Description'
         WHERE t.name = #{tableName}
+        AND t.schema_id = SCHEMA_ID()
     </select>
 
     <select id="selectGenTableById" parameterType="Long" resultMap="GenTableResult">

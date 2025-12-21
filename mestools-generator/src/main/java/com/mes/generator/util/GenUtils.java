@@ -42,12 +42,13 @@ public class GenUtils {
         column.setJavaType(GenConstants.TYPE_STRING);
         column.setQueryType(GenConstants.QUERY_EQ);
 
-        if (arraysContains(GenConstants.COLUMNTYPE_STR, dataType) || arraysContains(GenConstants.COLUMNTYPE_TEXT, dataType)) {
+        if (arraysContains(GenConstants.COLUMNTYPE_STR, dataType) || arraysContains(GenConstants.COLUMNTYPE_TEXT, dataType)
+                || arraysContains(new String[]{"nvarchar", "nchar", "text", "ntext", "uniqueidentifier"}, dataType)) {
             // 字符串长度超过500设置为文本域
             Integer columnLength = getColumnLength(column.getColumnType());
-            String htmlType = columnLength >= 500 || arraysContains(GenConstants.COLUMNTYPE_TEXT, dataType) ? GenConstants.HTML_TEXTAREA : GenConstants.HTML_INPUT;
+            String htmlType = columnLength >= 500 || arraysContains(GenConstants.COLUMNTYPE_TEXT, dataType) || arraysContains(new String[]{"text", "ntext"}, dataType) ? GenConstants.HTML_TEXTAREA : GenConstants.HTML_INPUT;
             column.setHtmlType(htmlType);
-        } else if (arraysContains(GenConstants.COLUMNTYPE_TIME, dataType)) {
+        } else if (arraysContains(GenConstants.COLUMNTYPE_TIME, dataType) || arraysContains(new String[]{"datetime", "datetime2", "smalldatetime", "date", "time"}, dataType)) {
             column.setJavaType(GenConstants.TYPE_DATE);
             column.setHtmlType(GenConstants.HTML_DATETIME);
         } else if (arraysContains(GenConstants.COLUMNTYPE_NUMBER, dataType)) {
@@ -66,6 +67,12 @@ public class GenUtils {
             else {
                 column.setJavaType(GenConstants.TYPE_LONG);
             }
+        } else if (arraysContains(new String[]{"money", "smallmoney", "numeric", "float", "real"}, dataType)) {
+            column.setHtmlType(GenConstants.HTML_INPUT);
+            column.setJavaType(GenConstants.TYPE_BIGDECIMAL);
+        } else if ("bit".equals(dataType)) {
+            column.setHtmlType(GenConstants.HTML_INPUT);
+            column.setJavaType(GenConstants.TYPE_INTEGER);
         }
 
         // 插入字段（默认所有字段都需要插入）
@@ -213,6 +220,10 @@ public class GenUtils {
     public static Integer getColumnLength(String columnType) {
         if (StringUtils.indexOf(columnType, "(") > 0) {
             String length = StringUtils.substringBetween(columnType, "(", ")");
+            // SQL Server nvarchar(max) support
+            if ("max".equalsIgnoreCase(length)) {
+                return 5000;
+            }
             return Integer.valueOf(length);
         } else {
             return 0;
