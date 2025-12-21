@@ -63,6 +63,10 @@ public class GenUtils {
             else if (str != null && str.length == 1 && Integer.parseInt(str[0]) <= 10) {
                 column.setJavaType(GenConstants.TYPE_INTEGER);
             }
+            // SQL Server 整数类型无长度信息，需特殊处理
+            else if (arraysContains(new String[]{"int", "smallint", "tinyint"}, dataType)) {
+                column.setJavaType(GenConstants.TYPE_INTEGER);
+            }
             // 长整形
             else {
                 column.setJavaType(GenConstants.TYPE_LONG);

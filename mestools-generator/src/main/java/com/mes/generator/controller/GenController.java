@@ -132,6 +132,10 @@ public class GenController extends BaseController {
                     SQLCreateTableStatement createTableStatement = (SQLCreateTableStatement) sqlStatement;
                     if (genTableService.createTable(createTableStatement.toString())) {
                         String tableName = createTableStatement.getTableName().replaceAll("`", "").replaceAll("\\[", "").replaceAll("\\]", "");
+                        // 处理 SQL Server Schema 前缀 (如 dbo.User -> User)
+                        if (tableName.contains(".")) {
+                            tableName = tableName.substring(tableName.lastIndexOf(".") + 1);
+                        }
                         tableNames.add(tableName);
                     }
                 }
