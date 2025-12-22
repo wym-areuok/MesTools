@@ -29,7 +29,7 @@ public class QueryInfo extends BaseEntity {
     @Excel(name = "资料内容")
     private String infoContent;
 
-    @Excel(name = "状态", readConverterExp = "0=正常,1=停用")
+    @Excel(name = "状态", dictType = "info_status")
     private String status;
 
     @Excel(name = "搜索次数")
