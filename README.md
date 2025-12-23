@@ -78,7 +78,7 @@
 ### 执行SQL
 1.  **编辑器功能**：
     *   使用 `CodeMirror` 创建SQL编辑器，支持语法高亮和关键字补全。
-    *   模拟SSMS界面执行SQL，支持鼠标选中部分语句 + `Ctrl+Enter` 快捷键执行,但为了安全性考虑,限制每次只能执行一条SQL)。
+    *   模拟SSMS界面执行SQL，支持鼠标选中部分语句，以及 `Ctrl+Enter` 快捷键执行,但为了安全性考虑,限制每次只能执行一条SQL。
 2.  **超时保护**：增加保护机制，执行时间限制在5秒内，超时则中断后台线程以取消数据库查询。
 3.  **SQL语句验证**（前后端均有）：
     *   **危险关键字**：黑名单机制，禁止执行 `DROP`, `TRUNCATE`, `ALTER`, `CREATE`, `RENAME` 等危险操作。
@@ -173,3 +173,18 @@ GO
 ALTER TABLE [dbo].[string_tool_info] ADD  DEFAULT ((0)) FOR [search_count]
 GO
 ```
+## 演示图
+<table>
+    <tr>
+        <td><img src=".\demopic\homepage.png"/></td>
+        <td><img src=".\demopic\jumpstation.png"/></td>
+    </tr>
+    <tr>
+        <td><img src=".\demopic\stringtool.png"/></td>
+        <td><img src=".\demopic\changepwd.png"/></td>
+    </tr>
+    <tr>
+        <td><img src=".\demopic\queryinfo.png"/></td>
+        <td><img src=".\demopic\executesql.png"/></td>
+    </tr>
+</table>
