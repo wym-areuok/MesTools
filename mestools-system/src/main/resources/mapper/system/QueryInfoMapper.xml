@@ -23,7 +23,7 @@
         SELECT
         info_id, info_title, info_tags, info_type, info_content, status,
         create_by, create_time, update_by, update_time, remark, search_count
-        FROM string_tool_info
+        FROM query_info
     </sql>
 
     <select id="selectQueryInfoByInfoId" parameterType="Integer" resultMap="QueryInfoResult">
@@ -65,7 +65,7 @@
 
     <insert id="insertQueryInfo" parameterType="QueryInfo" useGeneratedKeys="true" keyProperty="infoId"
             keyColumn="info_id">
-        INSERT INTO string_tool_info
+        INSERT INTO query_info
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="infoTitle != null and infoTitle != ''">info_title,</if>
             <if test="infoTags != null and infoTags != ''">info_tags,</if>
@@ -91,7 +91,7 @@
     </insert>
 
     <update id="updateQueryInfo" parameterType="QueryInfo">
-        UPDATE string_tool_info
+        UPDATE query_info
         <set>
             <if test="infoTitle != null and infoTitle != ''">info_title = #{infoTitle},</if>
             <if test="infoTags != null and infoTags != ''">info_tags = #{infoTags},</if>
@@ -107,12 +107,12 @@
     </update>
 
     <delete id="deleteQueryInfoByInfoId" parameterType="Integer">
-        DELETE FROM string_tool_info
+        DELETE FROM query_info
         WHERE info_id = #{infoId}
     </delete>
 
     <delete id="deleteQueryInfoByInfoIds" parameterType="Integer">
-        DELETE FROM string_tool_info
+        DELETE FROM query_info
         WHERE info_id IN
         <foreach item="infoId" collection="array" open="(" separator="," close=")">
             #{infoId}
@@ -120,7 +120,7 @@
     </delete>
 
     <update id="incrementSearchCount" parameterType="Integer">
-        UPDATE string_tool_info
+        UPDATE query_info
         SET search_count = search_count + 1
         WHERE info_id = #{infoId}
     </update>
