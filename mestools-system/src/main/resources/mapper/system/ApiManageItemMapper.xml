@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mes.system.mapper.ApiManageItemMapper">
+
+    <resultMap type="ApiManageItem" id="ApiManageItemResult">
+        <result property="itemId" column="item_id"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="itemName" column="item_name"/>
+        <result property="itemType" column="item_type"/>
+        <result property="itemKey" column="item_key"/>
+        <result property="reqMethod" column="req_method"/>
+        <result property="reqUrl" column="req_url"/>
+        <result property="reqParams" column="req_params"/>
+        <result property="reqHeaders" column="req_headers"/>
+        <result property="reqPathParams" column="req_path_params"/>
+        <result property="reqBodyType" column="req_body_type"/>
+        <result property="reqBodyJson" column="req_body_json"/>
+        <result property="reqFormData" column="req_form_data"/>
+        <result property="authType" column="auth_type"/>
+        <result property="authToken" column="auth_token"/>
+        <result property="responseDef" column="response_def"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="selectApiManageItemVo">
+        select item_id, parent_id, item_name, item_type, item_key, req_method, req_url, req_params, req_headers,
+        req_path_params, req_body_type, req_body_json, req_form_data, auth_type, auth_token, response_def, sort_order,
+        create_by, create_time, update_by, update_time
+        from api_manage_item
+    </sql>
+
+    <!-- 查询接口树 (排除环境) -->
+    <select id="selectApiTreeList" resultMap="ApiManageItemResult">
+        <include refid="selectApiManageItemVo"/>
+        where item_type != 'env'
+        order by sort_order, create_time
+    </select>
+
+    <!-- 查询环境列表 -->
+    <select id="selectEnvList" resultMap="ApiManageItemResult">
+        <include refid="selectApiManageItemVo"/>
+        where item_type = 'env'
+        order by create_time
+    </select>
+
+    <select id="selectApiManageItemById" parameterType="Long" resultMap="ApiManageItemResult">
+        <include refid="selectApiManageItemVo"/>
+        where item_id = #{itemId}
+    </select>
+
+    <insert id="insertApiManageItem" parameterType="ApiManageItem" useGeneratedKeys="true" keyProperty="itemId">
+        insert into api_manage_item
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="parentId != null">parent_id,</if>
+            <if test="itemName != null and itemName != ''">item_name,</if>
+            <if test="itemType != null">item_type,</if>
+            <if test="itemKey != null">item_key,</if>
+            <if test="reqMethod != null">req_method,</if>
+            <if test="reqUrl != null">req_url,</if>
+            <if test="reqParams != null">req_params,</if>
+            <if test="reqHeaders != null">req_headers,</if>
+            <if test="reqPathParams != null">req_path_params,</if>
+            <if test="reqBodyType != null">req_body_type,</if>
+            <if test="reqBodyJson != null">req_body_json,</if>
+            <if test="reqFormData != null">req_form_data,</if>
+            <if test="authType != null">auth_type,</if>
+            <if test="authToken != null">auth_token,</if>
+            <if test="responseDef != null">response_def,</if>
+            <if test="sortOrder != null">sort_order,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="parentId != null">#{parentId},</if>
+            <if test="itemName != null and itemName != ''">#{itemName},</if>
+            <if test="itemType != null">#{itemType},</if>
+            <if test="itemKey != null">#{itemKey},</if>
+            <if test="reqMethod != null">#{reqMethod},</if>
+            <if test="reqUrl != null">#{reqUrl},</if>
+            <if test="reqParams != null">#{reqParams},</if>
+            <if test="reqHeaders != null">#{reqHeaders},</if>
+            <if test="reqPathParams != null">#{reqPathParams},</if>
+            <if test="reqBodyType != null">#{reqBodyType},</if>
+            <if test="reqBodyJson != null">#{reqBodyJson},</if>
+            <if test="reqFormData != null">#{reqFormData},</if>
+            <if test="authType != null">#{authType},</if>
+            <if test="authToken != null">#{authToken},</if>
+            <if test="responseDef != null">#{responseDef},</if>
+            <if test="sortOrder != null">#{sortOrder},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+        </trim>
+    </insert>
+
+    <update id="updateApiManageItem" parameterType="ApiManageItem">
+        update api_manage_item
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="itemName != null and itemName != ''">item_name = #{itemName},</if>
+            <if test="itemType != null">item_type = #{itemType},</if>
+            <if test="itemKey != null">item_key = #{itemKey},</if>
+            <if test="reqMethod != null">req_method = #{reqMethod},</if>
+            <if test="reqUrl != null">req_url = #{reqUrl},</if>
+            <if test="reqParams != null">req_params = #{reqParams},</if>
+            <if test="reqHeaders != null">req_headers = #{reqHeaders},</if>
+            <if test="reqPathParams != null">req_path_params = #{reqPathParams},</if>
+            <if test="reqBodyType != null">req_body_type = #{reqBodyType},</if>
+            <if test="reqBodyJson != null">req_body_json = #{reqBodyJson},</if>
+            <if test="reqFormData != null">req_form_data = #{reqFormData},</if>
+            <if test="authType != null">auth_type = #{authType},</if>
+            <if test="authToken != null">auth_token = #{authToken},</if>
+            <if test="responseDef != null">response_def = #{responseDef},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where item_id = #{itemId}
+    </update>
+
+    <delete id="deleteApiManageItemById" parameterType="Long">
+        delete from api_manage_item where item_id = #{itemId}
+    </delete>
+
+    <delete id="deleteEnvItems">
+        delete from api_manage_item where item_type = 'env'
+    </delete>
+</mapper>

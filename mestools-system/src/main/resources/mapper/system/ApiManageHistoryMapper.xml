@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mes.system.mapper.ApiManageHistoryMapper">
+
+    <resultMap type="ApiManageHistory" id="ApiManageHistoryResult">
+        <result property="historyId" column="history_id"/>
+        <result property="itemId" column="item_id"/>
+        <result property="reqMethod" column="req_method"/>
+        <result property="reqUrl" column="req_url"/>
+        <result property="resStatus" column="res_status"/>
+        <result property="duration" column="duration"/>
+        <result property="snapshotJson" column="snapshot_json"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <sql id="selectApiManageHistoryVo">
+        select history_id, item_id, req_method, req_url, res_status, duration, snapshot_json, create_time
+        from api_manage_history
+    </sql>
+
+    <select id="selectApiManageHistoryList" parameterType="ApiManageHistory" resultMap="ApiManageHistoryResult">
+        <include refid="selectApiManageHistoryVo"/>
+        <where>
+            <if test="itemId != null ">and item_id = #{itemId}</if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <insert id="insertApiManageHistory" parameterType="ApiManageHistory" useGeneratedKeys="true"
+            keyProperty="historyId">
+        insert into api_manage_history
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="itemId != null">item_id,</if>
+            <if test="reqMethod != null">req_method,</if>
+            <if test="reqUrl != null">req_url,</if>
+            <if test="resStatus != null">res_status,</if>
+            <if test="duration != null">duration,</if>
+            <if test="snapshotJson != null">snapshot_json,</if>
+            <if test="createTime != null">create_time,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="itemId != null">#{itemId},</if>
+            <if test="reqMethod != null">#{reqMethod},</if>
+            <if test="reqUrl != null">#{reqUrl},</if>
+            <if test="resStatus != null">#{resStatus},</if>
+            <if test="duration != null">#{duration},</if>
+            <if test="snapshotJson != null">#{snapshotJson},</if>
+            <if test="createTime != null">#{createTime},</if>
+        </trim>
+    </insert>
+</mapper>
