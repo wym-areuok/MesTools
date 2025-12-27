@@ -89,4 +89,17 @@ public class ApiManageController extends BaseController {
         Map<String, Object> result = apiManageService.proxyRequest(proxyRequest);
         return AjaxResult.success(result);
     }
+
+    // --- 导入导出 ---
+
+    @GetMapping("/export")
+    public AjaxResult export() {
+        return AjaxResult.success(apiManageService.exportData());
+    }
+
+    @PostMapping("/import")
+    public AjaxResult importData(@RequestBody Map<String, Object> data) {
+        apiManageService.importData(data);
+        return AjaxResult.success();
+    }
 }

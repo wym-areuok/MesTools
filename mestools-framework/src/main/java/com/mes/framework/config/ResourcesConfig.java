@@ -76,6 +76,9 @@ public class ResourcesConfig implements WebMvcConfigurer {
      */
     @Bean
     public RestTemplate restTemplate() {
+        // 注意：SimpleClientHttpRequestFactory 基于 JDK HttpURLConnection，不支持 PATCH 方法。
+        // 如果需要支持 PATCH，建议引入 HttpClient 依赖并使用 HttpComponentsClientHttpRequestFactory。
+        // return new RestTemplate(new HttpComponentsClientHttpRequestFactory());
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         // 设置连接超时和读取超时时间（毫秒），防止请求卡死
         factory.setConnectTimeout(10000);

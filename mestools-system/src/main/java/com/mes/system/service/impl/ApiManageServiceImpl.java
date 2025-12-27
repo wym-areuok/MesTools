@@ -101,6 +101,10 @@ public class ApiManageServiceImpl implements IApiManageService {
         Map<String, Object> result = new HashMap<>();
         long startTime = System.currentTimeMillis();
 
+        // 用于记录历史的最终URL和状态码
+        String finalUrl = dto.getUrl();
+        int resStatus = 0;
+
         try {
             // 1. 构造 Headers
             HttpHeaders headers = new HttpHeaders();
@@ -116,109 +120,143 @@ public class ApiManageServiceImpl implements IApiManageService {
                 Map<String, Object> map = (Map<String, Object>) body;
                 map.forEach(formBody::add);
                 body = formBody;
-                // 如果前端没传 Content-Type，默认设为表单提交
-                if (!headers.containsKey(HttpHeaders.CONTENT_TYPE)) {
+
+                // 智能修正 Content-Type:
+                // 1. 如果前端没传，默认为表单提交
+                // 2. 如果前端传了 application/json (默认值)，但 bodyType 是 form，强制修正为表单提交，防止 RestTemplate 发送 JSON
+                if (!headers.containsKey(HttpHeaders.CONTENT_TYPE) || MediaType.APPLICATION_JSON.equals(headers.getContentType()) || MediaType.APPLICATION_JSON_UTF8.equals(headers.getContentType())) {
                     headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
                 }
             }
-            
+
             HttpEntity<Object> entity = new HttpEntity<>(body, headers);
 
             // 3. 处理 URL 参数 (Query Params)
-            // 优化：如果 params 为空（前端已手动拼接），直接使用 url，避免 UriComponentsBuilder 二次解析导致特殊字符编码问题
-            String url = dto.getUrl();
             if (dto.getParams() != null && !dto.getParams().isEmpty()) {
-                UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(url);
+                UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(finalUrl);
                 dto.getParams().forEach(uriBuilder::queryParam);
-                url = uriBuilder.build().toUriString();
+                finalUrl = uriBuilder.build().toUriString();
             }
 
             // 4. 发送请求
             HttpMethod method = HttpMethod.valueOf(dto.getMethod().toUpperCase());
-            ResponseEntity<String> response = restTemplate.exchange(url, method, entity, String.class);
+            ResponseEntity<String> response = restTemplate.exchange(finalUrl, method, entity, String.class);
 
             // 5. 封装成功响应
-            result.put("status", response.getStatusCodeValue());
+            resStatus = response.getStatusCodeValue();
+            result.put("status", resStatus);
             result.put("statusText", response.getStatusCode().name());
             result.put("headers", response.getHeaders());
             result.put("data", response.getBody());
             result.put("size", response.getBody() != null ? response.getBody().length() + " B" : "0 B");
 
-            // 6. 自动记录历史 (可选)
-            ApiManageHistory history = new ApiManageHistory();
-            history.setReqMethod(dto.getMethod());
-            history.setReqUrl(url);
-            history.setResStatus(response.getStatusCodeValue());
-            history.setDuration((int) (System.currentTimeMillis() - startTime));
-            apiManageHistoryMapper.insertApiManageHistory(history);
-
         } catch (HttpClientErrorException | HttpServerErrorException e) {
             // 捕获 4xx, 5xx 错误
-            result.put("status", e.getRawStatusCode());
+            resStatus = e.getRawStatusCode();
+            result.put("status", resStatus);
             result.put("statusText", e.getStatusText());
             result.put("data", e.getResponseBodyAsString());
             result.put("size", e.getResponseBodyAsString().length() + " B");
-
-            // 记录失败历史
-            ApiManageHistory history = new ApiManageHistory();
-            history.setReqMethod(dto.getMethod());
-            history.setReqUrl(dto.getUrl());
-            history.setResStatus(e.getRawStatusCode());
-            history.setDuration((int) (System.currentTimeMillis() - startTime));
-            apiManageHistoryMapper.insertApiManageHistory(history);
-
         } catch (Exception e) {
             // 其他错误
+            resStatus = 0;
             result.put("status", 0);
             result.put("statusText", "Error");
             result.put("data", "Proxy Error: " + e.getMessage());
             e.printStackTrace();
+        } finally {
+            // 6. 统一记录历史 (放在 finally 块中确保无论成功失败都记录)
+            try {
+                ApiManageHistory history = new ApiManageHistory();
+                history.setReqMethod(dto.getMethod());
+                history.setReqUrl(finalUrl); // 使用包含参数的完整URL
+                history.setResStatus(resStatus);
+                history.setDuration((int) (System.currentTimeMillis() - startTime));
+                if (StringUtils.isNotEmpty(dto.getSnapshotJson())) {
+                    history.setSnapshotJson(dto.getSnapshotJson());
+                }
+                apiManageHistoryMapper.insertApiManageHistory(history);
+            } catch (Exception ex) {
+                // 忽略历史记录保存失败，避免影响主流程
+                System.err.println("Failed to save api history: " + ex.getMessage());
+            }
         }
 
         return result;
     }
 
-    // 递归构建树
-    private List<ApiManageItem> buildTree(List<ApiManageItem> list) {
-        List<ApiManageItem> returnList = new ArrayList<>();
-        List<Long> tempList = new ArrayList<>();
-        for (ApiManageItem t : list) {
-            tempList.add(t.getItemId());
-        }
-        for (ApiManageItem t : list) {
-            // 如果是顶级节点 (parentId 为 0 或 不在列表中)
-            if (t.getParentId() == 0 || !tempList.contains(t.getParentId())) {
-                recursionFn(list, t);
-                returnList.add(t);
+    @Override
+    public Map<String, Object> exportData() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("tree", selectApiTree());
+        data.put("envs", selectEnvList());
+        return data;
+    }
+
+    @Override
+    @Transactional
+    public void importData(Map<String, Object> data) {
+        // 1. 导入环境
+        if (data.containsKey("envs")) {
+            String json = com.alibaba.fastjson2.JSON.toJSONString(data.get("envs"));
+            List<ApiManageItem> envList = com.alibaba.fastjson2.JSON.parseArray(json, ApiManageItem.class);
+            if (envList != null) {
+                for (ApiManageItem item : envList) {
+                    item.setItemId(null); // 重置ID，作为新数据插入
+                    item.setCreateTime(DateUtils.getNowDate());
+                    apiManageItemMapper.insertApiManageItem(item);
+                }
             }
         }
-        if (returnList.isEmpty()) {
-            returnList = list;
+
+        // 2. 导入接口树 (递归)
+        if (data.containsKey("tree")) {
+            String json = com.alibaba.fastjson2.JSON.toJSONString(data.get("tree"));
+            List<ApiManageItem> treeList = com.alibaba.fastjson2.JSON.parseArray(json, ApiManageItem.class);
+            if (treeList != null) {
+                importTreeNodes(treeList, 0L);
+            }
+        }
+    }
+
+    private void importTreeNodes(List<ApiManageItem> nodes, Long parentId) {
+        for (ApiManageItem node : nodes) {
+            node.setItemId(null);
+            node.setParentId(parentId);
+            node.setCreateTime(DateUtils.getNowDate());
+            apiManageItemMapper.insertApiManageItem(node);
+
+            if (node.getChildren() != null && !node.getChildren().isEmpty()) {
+                importTreeNodes(node.getChildren(), node.getItemId());
+            }
+        }
+    }
+
+    // 递归构建树
+    // 优化：使用 Map 将时间复杂度从 O(n^2) 降低到 O(n)
+    private List<ApiManageItem> buildTree(List<ApiManageItem> list) {
+        if (list == null || list.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<ApiManageItem> returnList = new ArrayList<>();
+        Map<Long, ApiManageItem> map = new HashMap<>();
+
+        // 1. 将所有节点放入 map 中，以 itemId 为 key
+        for (ApiManageItem node : list) {
+            map.put(node.getItemId(), node);
+        }
+
+        // 2. 遍历列表，将节点放入其父节点的 children 列表中
+        for (ApiManageItem node : list) {
+            Long parentId = node.getParentId();
+            if (parentId != null && parentId != 0 && map.containsKey(parentId)) {
+                map.get(parentId).getChildren().add(node);
+            } else {
+                // 如果没有父节点或父节点不存在，则为顶级节点
+                returnList.add(node);
+            }
         }
         return returnList;
-    }
-
-    private void recursionFn(List<ApiManageItem> list, ApiManageItem t) {
-        List<ApiManageItem> childList = getChildList(list, t);
-        t.setChildren(childList);
-        for (ApiManageItem tChild : childList) {
-            if (hasChild(list, tChild)) {
-                recursionFn(list, tChild);
-            }
-        }
-    }
-
-    private List<ApiManageItem> getChildList(List<ApiManageItem> list, ApiManageItem t) {
-        List<ApiManageItem> tlist = new ArrayList<>();
-        for (ApiManageItem n : list) {
-            if (n.getParentId() != null && n.getParentId().longValue() == t.getItemId().longValue()) {
-                tlist.add(n);
-            }
-        }
-        return tlist;
-    }
-
-    private boolean hasChild(List<ApiManageItem> list, ApiManageItem t) {
-        return getChildList(list, t).size() > 0;
     }
 }

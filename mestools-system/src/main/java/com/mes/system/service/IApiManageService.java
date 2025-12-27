@@ -33,5 +33,8 @@ public interface IApiManageService {
 
     // 代理请求
     Map<String, Object> proxyRequest(ProxyRequestDto proxyRequest);
-}
 
+    Map<String, Object> exportData();
+
+    void importData(Map<String, Object> data);
+}
