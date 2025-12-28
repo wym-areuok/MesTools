@@ -12,6 +12,11 @@ import java.util.Map;
 @Data
 public class ProxyRequestDto {
     /**
+     * 接口ID
+     */
+    private Long itemId;
+
+    /**
      * 请求方式
      */
     private String method;

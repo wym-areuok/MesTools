@@ -168,6 +168,7 @@ public class ApiManageServiceImpl implements IApiManageService {
             // 6. 统一记录历史 (放在 finally 块中确保无论成功失败都记录)
             try {
                 ApiManageHistory history = new ApiManageHistory();
+                history.setItemId(dto.getItemId());
                 history.setReqMethod(dto.getMethod());
                 history.setReqUrl(finalUrl); // 使用包含参数的完整URL
                 history.setResStatus(resStatus);
