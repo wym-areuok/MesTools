@@ -104,6 +104,11 @@ public class ApiManageItem extends BaseEntity {
     private Integer sortOrder;
 
     /**
+     * 是否锁定 (1:是, 0:否)
+     */
+    private Integer isLocked;
+
+    /**
      * 子节点 (非数据库字段, 用于构建树)
      */
     private List<ApiManageItem> children = new ArrayList<>();

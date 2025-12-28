@@ -22,6 +22,7 @@
         <result property="authToken" column="auth_token"/>
         <result property="responseDef" column="response_def"/>
         <result property="sortOrder" column="sort_order"/>
+        <result property="isLocked" column="is_locked"/>
         <result property="createBy" column="create_by"/>
         <result property="createTime" column="create_time"/>
         <result property="updateBy" column="update_by"/>
@@ -31,7 +32,7 @@
     <sql id="selectApiManageItemVo">
         select item_id, parent_id, item_name, item_type, item_key, req_method, req_url, req_params, req_headers,
         req_path_params, req_body_type, req_body_json, req_form_data, auth_type, auth_token, response_def, sort_order,
-        create_by, create_time, update_by, update_time
+        is_locked, create_by, create_time, update_by, update_time
         from api_manage_item
     </sql>
 
@@ -73,6 +74,7 @@
             <if test="authToken != null">auth_token,</if>
             <if test="responseDef != null">response_def,</if>
             <if test="sortOrder != null">sort_order,</if>
+            <if test="isLocked != null">is_locked,</if>
             <if test="createBy != null">create_by,</if>
             <if test="createTime != null">create_time,</if>
         </trim>
@@ -93,6 +95,7 @@
             <if test="authToken != null">#{authToken},</if>
             <if test="responseDef != null">#{responseDef},</if>
             <if test="sortOrder != null">#{sortOrder},</if>
+            <if test="isLocked != null">#{isLocked},</if>
             <if test="createBy != null">#{createBy},</if>
             <if test="createTime != null">#{createTime},</if>
         </trim>
@@ -117,6 +120,7 @@
             <if test="authToken != null">auth_token = #{authToken},</if>
             <if test="responseDef != null">response_def = #{responseDef},</if>
             <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            <if test="isLocked != null">is_locked = #{isLocked},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
         </trim>

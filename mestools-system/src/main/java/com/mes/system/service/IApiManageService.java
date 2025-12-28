@@ -37,4 +37,6 @@ public interface IApiManageService {
     Map<String, Object> exportData();
 
     void importData(Map<String, Object> data);
+
+    int toggleLock(Long itemId, Integer isLocked);
 }

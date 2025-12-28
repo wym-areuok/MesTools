@@ -1,6 +1,7 @@
 package com.mes.system.service.impl;
 
 import com.mes.common.utils.DateUtils;
+import com.mes.common.exception.ServiceException;
 import com.mes.common.utils.StringUtils;
 import com.mes.system.domain.ApiManageHistory;
 import com.mes.system.domain.ApiManageItem;
@@ -63,12 +64,24 @@ public class ApiManageServiceImpl implements IApiManageService {
 
     @Override
     public int updateApiManageItem(ApiManageItem apiManageItem) {
+        // 检查是否被锁定
+        ApiManageItem existingItem = apiManageItemMapper.selectApiManageItemById(apiManageItem.getItemId());
+        if (existingItem != null && existingItem.getIsLocked() != null && existingItem.getIsLocked() == 1) {
+            // 允许更新 parentId (拖拽) 和 isLocked (解锁操作会走 toggleLock，但防止意外)
+            if (apiManageItem.getParentId() == null && apiManageItem.getIsLocked() == null) {
+                throw new ServiceException("该接口已被锁定，无法修改");
+            }
+        }
         apiManageItem.setUpdateTime(DateUtils.getNowDate());
         return apiManageItemMapper.updateApiManageItem(apiManageItem);
     }
 
     @Override
     public int deleteApiManageItemById(Long itemId) {
+        ApiManageItem existingItem = apiManageItemMapper.selectApiManageItemById(itemId);
+        if (existingItem != null && existingItem.getIsLocked() != null && existingItem.getIsLocked() == 1) {
+            throw new ServiceException("该接口已被锁定，无法删除");
+        }
         return apiManageItemMapper.deleteApiManageItemById(itemId);
     }
 
@@ -218,6 +231,14 @@ public class ApiManageServiceImpl implements IApiManageService {
                 importTreeNodes(treeList, 0L);
             }
         }
+    }
+
+    @Override
+    public int toggleLock(Long itemId, Integer isLocked) {
+        ApiManageItem item = new ApiManageItem();
+        item.setItemId(itemId);
+        item.setIsLocked(isLocked);
+        return apiManageItemMapper.updateApiManageItem(item);
     }
 
     private void importTreeNodes(List<ApiManageItem> nodes, Long parentId) {

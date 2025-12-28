@@ -61,6 +61,12 @@ public class ApiManageController extends BaseController {
         return toAjax(apiManageService.deleteApiManageItemById(itemId));
     }
 
+    @PutMapping("/lock/{itemId}/{isLocked}")
+    @PreAuthorize("@ss.hasPermi('dailyTools:apiManage:edit')")
+    public AjaxResult toggleLock(@PathVariable("itemId") Long itemId, @PathVariable("isLocked") Integer isLocked) {
+        return toAjax(apiManageService.toggleLock(itemId, isLocked));
+    }
+
     // --- 环境管理 ---
 
     @GetMapping("/env/list")
