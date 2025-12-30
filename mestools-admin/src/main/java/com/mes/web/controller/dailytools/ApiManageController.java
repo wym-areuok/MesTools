@@ -82,7 +82,7 @@ public class ApiManageController extends BaseController {
     @PutMapping("/lock/{itemId}/{isLocked}")
     @ApiOperation("锁定/解锁接口")
     @Log(title = "接口管理", businessType = BusinessType.UPDATE)
-    @PreAuthorize("@ss.hasPermi('dailyTools:apiManage:edit')")
+    @PreAuthorize("@ss.hasPermi('dailyTools:apiManage:lock')")
     public AjaxResult toggleLock(@PathVariable("itemId") Long itemId, @PathVariable("isLocked") Integer isLocked) {
         return toAjax(apiManageService.toggleLock(itemId, isLocked));
     }
