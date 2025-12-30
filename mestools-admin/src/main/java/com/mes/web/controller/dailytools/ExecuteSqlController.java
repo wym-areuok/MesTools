@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 /**
@@ -89,23 +90,7 @@ public class ExecuteSqlController extends BaseController {
     @Log(title = "SQL执行工具", businessType = BusinessType.SELECT, isSaveResponseData = false)
     @PostMapping("/query")
     public AjaxResult executeQuery(@RequestBody ExecuteSqlDTO request) {
-        Future<List<Map<String, Object>>> future = null;
-        try {
-            ValidationResult validation = validate(request.getSqlContent(), "SELECT");
-            if (!validation.isValid()) {
-                return AjaxResult.error("SQL语句验证失败：" + validation.getMessage());
-            }
-            future = CompletableFuture.supplyAsync(() -> sqlExecuteService.executeQuery(request.getDbDataSource(), request.getSqlContent()));
-            List<Map<String, Object>> queryResult = future.get(5, TimeUnit.SECONDS);
-            return AjaxResult.success(queryResult);
-        } catch (TimeoutException e) {
-            // 在超时后,尝试中断后台线程以取消数据库查询
-            if (future != null) future.cancel(true);
-            return AjaxResult.error("SQL执行超时,请优化SQL语句或检查数据库状态");
-        } catch (Exception e) {
-            logger.error("查询SQL执行异常", e);
-            return AjaxResult.error("查询执行失败：" + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
-        }
+        return handleExecute(request, "SELECT", (db, sql) -> sqlExecuteService.executeQuery(db, sql));
     }
 
     /**
@@ -119,22 +104,7 @@ public class ExecuteSqlController extends BaseController {
     @Log(title = "SQL执行工具", businessType = BusinessType.UPDATE)
     @PutMapping("/update")
     public AjaxResult executeUpdate(@RequestBody ExecuteSqlDTO request) {
-        Future<Integer> future = null;
-        try {
-            ValidationResult validation = validate(request.getSqlContent(), "UPDATE");
-            if (!validation.isValid()) {
-                return AjaxResult.error("SQL语句验证失败：" + validation.getMessage());
-            }
-            future = CompletableFuture.supplyAsync(() -> sqlExecuteService.executeUpdate(request.getDbDataSource(), request.getSqlContent()));
-            int affectedRows = future.get(5, TimeUnit.SECONDS);
-            return AjaxResult.success("更新成功", affectedRows);
-        } catch (TimeoutException e) {
-            if (future != null) future.cancel(true);
-            return AjaxResult.error("SQL执行超时,请优化SQL语句或检查数据库状态");
-        } catch (Exception e) {
-            logger.error("更新SQL执行异常", e);
-            return AjaxResult.error("更新执行失败：" + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
-        }
+        return handleExecute(request, "UPDATE", (db, sql) -> sqlExecuteService.executeUpdate(db, sql));
     }
 
     /**
@@ -148,22 +118,7 @@ public class ExecuteSqlController extends BaseController {
     @Log(title = "SQL执行工具", businessType = BusinessType.INSERT)
     @PostMapping("/insert")
     public AjaxResult executeInsert(@RequestBody ExecuteSqlDTO request) {
-        Future<Integer> future = null;
-        try {
-            ValidationResult validation = validate(request.getSqlContent(), "INSERT");
-            if (!validation.isValid()) {
-                return AjaxResult.error("SQL语句验证失败：" + validation.getMessage());
-            }
-            future = CompletableFuture.supplyAsync(() -> sqlExecuteService.executeInsert(request.getDbDataSource(), request.getSqlContent()));
-            int affectedRows = future.get(5, TimeUnit.SECONDS);
-            return AjaxResult.success("插入成功", affectedRows);
-        } catch (TimeoutException e) {
-            if (future != null) future.cancel(true);
-            return AjaxResult.error("SQL执行超时,请优化SQL语句或检查数据库状态");
-        } catch (Exception e) {
-            logger.error("插入SQL执行异常", e);
-            return AjaxResult.error("插入执行失败：" + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
-        }
+        return handleExecute(request, "INSERT", (db, sql) -> sqlExecuteService.executeInsert(db, sql));
     }
 
     /**
@@ -177,21 +132,36 @@ public class ExecuteSqlController extends BaseController {
     @Log(title = "SQL执行工具", businessType = BusinessType.DELETE)
     @DeleteMapping("/delete")
     public AjaxResult executeDelete(@RequestBody ExecuteSqlDTO request) {
-        Future<Integer> future = null;
+        return handleExecute(request, "DELETE", (db, sql) -> sqlExecuteService.executeDelete(db, sql));
+    }
+
+    /**
+     * 统一处理SQL执行逻辑，消除冗余代码
+     */
+    private AjaxResult handleExecute(ExecuteSqlDTO request, String operationType, BiFunction<String, String, Object> executor) {
+        Future<Object> future = null;
         try {
-            ValidationResult validation = validate(request.getSqlContent(), "DELETE");
+            ValidationResult validation = validate(request.getSqlContent(), operationType);
             if (!validation.isValid()) {
                 return AjaxResult.error("SQL语句验证失败：" + validation.getMessage());
             }
-            future = CompletableFuture.supplyAsync(() -> sqlExecuteService.executeDelete(request.getDbDataSource(), request.getSqlContent()));
-            int affectedRows = future.get(5, TimeUnit.SECONDS);
-            return AjaxResult.success("删除成功", affectedRows);
+            future = CompletableFuture.supplyAsync(() -> executor.apply(request.getDbDataSource(), request.getSqlContent()));
+            Object result = future.get(5, TimeUnit.SECONDS);
+
+            if ("SELECT".equals(operationType)) {
+                return AjaxResult.success(result);
+            }
+            String actionName = "执行";
+            if ("UPDATE".equals(operationType)) actionName = "更新";
+            else if ("INSERT".equals(operationType)) actionName = "插入";
+            else if ("DELETE".equals(operationType)) actionName = "删除";
+            return AjaxResult.success(actionName + "成功", result);
         } catch (TimeoutException e) {
             if (future != null) future.cancel(true);
             return AjaxResult.error("SQL执行超时,请优化SQL语句或检查数据库状态");
         } catch (Exception e) {
-            logger.error("删除SQL执行异常", e);
-            return AjaxResult.error("删除执行失败：" + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
+            logger.error(operationType + "SQL执行异常", e);
+            return AjaxResult.error(operationType + "执行失败：" + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
         }
     }
 
@@ -252,7 +222,7 @@ public class ExecuteSqlController extends BaseController {
             return ValidationResult.invalid(String.format("%s语句必须以%s开头", operationType, operationType));
         }
         // 检查危险关键字
-        if (!"INSERT".equals(operationType) && kwCounts.get("DANGEROUS") > 0) {
+        if (kwCounts.get("DANGEROUS") > 0) {
             return ValidationResult.invalid("SQL语句包含危险关键字 (DROP, TRUNCATE, ALTER, CREATE, RENAME)");
         }
         // 检查混合操作与多语句

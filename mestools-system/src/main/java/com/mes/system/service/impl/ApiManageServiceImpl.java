@@ -2,6 +2,7 @@ package com.mes.system.service.impl;
 
 import com.mes.common.utils.DateUtils;
 import com.mes.common.exception.ServiceException;
+import com.mes.common.utils.SecurityUtils;
 import com.mes.common.utils.StringUtils;
 import com.mes.system.domain.ApiManageHistory;
 import com.mes.system.domain.ApiManageItem;
@@ -9,6 +10,8 @@ import com.mes.system.domain.dto.ProxyRequestDto;
 import com.mes.system.mapper.ApiManageHistoryMapper;
 import com.mes.system.mapper.ApiManageItemMapper;
 import com.mes.system.service.IApiManageService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -20,6 +23,8 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.InetAddress;
+import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -30,6 +35,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class ApiManageServiceImpl implements IApiManageService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ApiManageServiceImpl.class);
 
     @Autowired
     private ApiManageItemMapper apiManageItemMapper;
@@ -118,6 +125,9 @@ public class ApiManageServiceImpl implements IApiManageService {
         String finalUrl = dto.getUrl();
         int resStatus = 0;
 
+        // 0. 安全校验：防止 SSRF 攻击
+        validateUrl(finalUrl);
+
         try {
             // 1. 构造 Headers
             HttpHeaders headers = new HttpHeaders();
@@ -176,7 +186,7 @@ public class ApiManageServiceImpl implements IApiManageService {
             result.put("status", 0);
             result.put("statusText", "Error");
             result.put("data", "Proxy Error: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("代理请求异常", e);
         } finally {
             // 6. 统一记录历史 (放在 finally 块中确保无论成功失败都记录)
             try {
@@ -192,7 +202,7 @@ public class ApiManageServiceImpl implements IApiManageService {
                 apiManageHistoryMapper.insertApiManageHistory(history);
             } catch (Exception ex) {
                 // 忽略历史记录保存失败，避免影响主流程
-                System.err.println("Failed to save api history: " + ex.getMessage());
+                logger.error("保存接口历史记录失败: {}", ex.getMessage());
             }
         }
 
@@ -210,6 +220,7 @@ public class ApiManageServiceImpl implements IApiManageService {
     @Override
     @Transactional
     public void importData(Map<String, Object> data) {
+        String username = SecurityUtils.getUsername();
         // 1. 导入环境
         if (data.containsKey("envs")) {
             String json = com.alibaba.fastjson2.JSON.toJSONString(data.get("envs"));
@@ -217,6 +228,7 @@ public class ApiManageServiceImpl implements IApiManageService {
             if (envList != null) {
                 for (ApiManageItem item : envList) {
                     item.setItemId(null); // 重置ID，作为新数据插入
+                    item.setCreateBy(username);
                     item.setCreateTime(DateUtils.getNowDate());
                     apiManageItemMapper.insertApiManageItem(item);
                 }
@@ -228,7 +240,7 @@ public class ApiManageServiceImpl implements IApiManageService {
             String json = com.alibaba.fastjson2.JSON.toJSONString(data.get("tree"));
             List<ApiManageItem> treeList = com.alibaba.fastjson2.JSON.parseArray(json, ApiManageItem.class);
             if (treeList != null) {
-                importTreeNodes(treeList, 0L);
+                importTreeNodes(treeList, 0L, username);
             }
         }
     }
@@ -238,18 +250,21 @@ public class ApiManageServiceImpl implements IApiManageService {
         ApiManageItem item = new ApiManageItem();
         item.setItemId(itemId);
         item.setIsLocked(isLocked);
+        item.setUpdateBy(SecurityUtils.getUsername());
+        item.setUpdateTime(DateUtils.getNowDate());
         return apiManageItemMapper.updateApiManageItem(item);
     }
 
-    private void importTreeNodes(List<ApiManageItem> nodes, Long parentId) {
+    private void importTreeNodes(List<ApiManageItem> nodes, Long parentId, String username) {
         for (ApiManageItem node : nodes) {
             node.setItemId(null);
             node.setParentId(parentId);
+            node.setCreateBy(username);
             node.setCreateTime(DateUtils.getNowDate());
             apiManageItemMapper.insertApiManageItem(node);
 
             if (node.getChildren() != null && !node.getChildren().isEmpty()) {
-                importTreeNodes(node.getChildren(), node.getItemId());
+                importTreeNodes(node.getChildren(), node.getItemId(), username);
             }
         }
     }
@@ -280,5 +295,24 @@ public class ApiManageServiceImpl implements IApiManageService {
             }
         }
         return returnList;
+    }
+
+    /**
+     * URL 安全校验，防止 SSRF 攻击
+     */
+    private void validateUrl(String urlString) {
+        try {
+            URL url = new URL(urlString);
+            String protocol = url.getProtocol();
+            if (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) {
+                throw new ServiceException("仅支持 HTTP/HTTPS 协议");
+            }
+            InetAddress address = InetAddress.getByName(url.getHost());
+            if (address.isLoopbackAddress() || address.isSiteLocalAddress() || address.isAnyLocalAddress() || address.isLinkLocalAddress()) {
+                throw new ServiceException("禁止访问内部网络地址");
+            }
+        } catch (Exception e) {
+            throw new ServiceException("URL 安全校验失败: " + e.getMessage());
+        }
     }
 }

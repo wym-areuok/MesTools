@@ -118,10 +118,4 @@
             #{infoId}
         </foreach>
     </delete>
-
-    <update id="incrementSearchCount" parameterType="Integer">
-        UPDATE query_info
-        SET search_count = search_count + 1
-        WHERE info_id = #{infoId}
-    </update>
 </mapper>

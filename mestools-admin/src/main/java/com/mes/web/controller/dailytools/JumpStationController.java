@@ -6,6 +6,7 @@ import com.mes.common.core.domain.AjaxResult;
 import com.mes.common.core.page.TableDataInfo;
 import com.mes.common.enums.BusinessType;
 
+import com.mes.common.exception.ServiceException;
 import com.mes.system.domain.dto.JumpStationDTO;
 import com.mes.system.service.IJumpStationService;
 import io.swagger.annotations.Api;
@@ -58,12 +59,11 @@ public class JumpStationController extends BaseController {
     @PostMapping("/list")
     public TableDataInfo list(@RequestBody JumpStationDTO queryDTO) {
         try {
-            startPage();
             List<Map<String, Object>> list = jumpStationService.list(queryDTO.getSnList(), queryDTO.getDbDataSource(), queryDTO.getJumpType());
             return getDataTable(list);
         } catch (Exception e) {
             logger.error("查询SN信息失败: ", e);
-            throw new RuntimeException("查询SN信息失败: " + e.getMessage(), e);
+            throw new ServiceException("查询SN信息失败: " + e.getMessage());
         }
     }
 

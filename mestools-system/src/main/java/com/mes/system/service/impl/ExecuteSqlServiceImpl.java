@@ -1,5 +1,6 @@
 package com.mes.system.service.impl;
 
+import com.mes.common.exception.ServiceException;
 import com.mes.system.service.IExecuteSqlService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Service;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -69,11 +70,13 @@ public class ExecuteSqlServiceImpl implements IExecuteSqlService {
         try (Connection connection = getDataSourceByDbName(dbName).getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setQueryTimeout(5); // 设置查询超时时间（秒）
+            statement.setMaxRows(1000);   // 设置最大返回行数，作为Controller校验的兜底
             try (ResultSet resultSet = statement.executeQuery()) {
                 ResultSetMetaData metaData = resultSet.getMetaData();
                 int columnCount = metaData.getColumnCount();
                 while (resultSet.next()) {
-                    Map<String, Object> row = new HashMap<>();
+                    // 使用 LinkedHashMap 保持列的顺序与SQL中一致
+                    Map<String, Object> row = new LinkedHashMap<>();
                     for (int i = 1; i <= columnCount; i++) {
                         String columnName = metaData.getColumnLabel(i); // 使用getColumnLabel支持别名
                         Object value = resultSet.getObject(i);
@@ -87,7 +90,7 @@ public class ExecuteSqlServiceImpl implements IExecuteSqlService {
             return result;
         } catch (SQLException e) {
             logger.error("执行查询SQL出错: {}", sql, e);
-            throw new RuntimeException("执行查询SQL出错: " + e.getMessage(), e);
+            throw new ServiceException("执行查询SQL出错: " + e.getMessage());
         }
     }
 
@@ -111,7 +114,7 @@ public class ExecuteSqlServiceImpl implements IExecuteSqlService {
             return rowsAffected;
         } catch (SQLException e) {
             logger.error("执行{}SQL出错: {}", operation, sql, e);
-            throw new RuntimeException("执行" + operation + "SQL出错: " + e.getMessage(), e);
+            throw new ServiceException("执行" + operation + "SQL出错: " + e.getMessage());
         }
     }
 
@@ -144,19 +147,19 @@ public class ExecuteSqlServiceImpl implements IExecuteSqlService {
                 if (iptfisDb71Enabled && iptfisDb71DataSource != null) {
                     return iptfisDb71DataSource;
                 }
-                throw new RuntimeException("数据源 IPTFIS-DB-71 未启用或未配置");
+                throw new ServiceException("数据源 IPTFIS-DB-71 未启用或未配置");
             case "IPTFIS-DB-70":
                 if (iptfisDb70Enabled && iptfisDb70DataSource != null) {
                     return iptfisDb70DataSource;
                 }
-                throw new RuntimeException("数据源 IPTFIS-DB-70 未启用或未配置");
+                throw new ServiceException("数据源 IPTFIS-DB-70 未启用或未配置");
             case "ITEFIS-DB-ONLINE":
                 if (itefisDbOnlineEnabled && itefisDbOnlineDataSource != null) {
                     return itefisDbOnlineDataSource;
                 }
-                throw new RuntimeException("数据源 ITEFIS-DB-ONLINE 未启用或未配置");
+                throw new ServiceException("数据源 ITEFIS-DB-ONLINE 未启用或未配置");
             default:
-                throw new RuntimeException("未知或未启用的数据源: " + dbName);
+                throw new ServiceException("未知或未启用的数据源: " + dbName);
         }
     }
 }

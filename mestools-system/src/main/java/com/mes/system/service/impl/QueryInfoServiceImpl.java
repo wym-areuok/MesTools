@@ -32,7 +32,18 @@ public class QueryInfoServiceImpl implements IQueryInfoService {
      */
     @Override
     public QueryInfo selectQueryInfoByInfoId(Integer infoId) {
-        return queryInfoMapper.selectQueryInfoByInfoId(infoId);
+        QueryInfo info = queryInfoMapper.selectQueryInfoByInfoId(infoId);
+        if (info != null) {
+            // 查看详情时增加搜索/阅读次数
+            QueryInfo updateInfo = new QueryInfo();
+            updateInfo.setInfoId(info.getInfoId());
+            int newCount = (info.getSearchCount() == null ? 0 : info.getSearchCount()) + 1;
+            updateInfo.setSearchCount(newCount);
+            queryInfoMapper.updateQueryInfo(updateInfo);
+            // 更新返回对象的阅读数，使前端显示最新值
+            info.setSearchCount(newCount);
+        }
+        return info;
     }
 
     /**
@@ -42,17 +53,8 @@ public class QueryInfoServiceImpl implements IQueryInfoService {
      * @return
      */
     @Override
-    @Transactional
     public List<QueryInfo> selectQueryInfoList(QueryInfo queryInfo) {
-        //查询的结果对search_count+1 搜索次数
-        List<QueryInfo> resultList = queryInfoMapper.selectQueryInfoList(queryInfo);
-        // 更新每个查询结果的搜索次数
-        for (QueryInfo info : resultList) {
-            QueryInfo updateInfo = new QueryInfo();
-            updateInfo.setInfoId(info.getInfoId());
-            updateInfo.setSearchCount(info.getSearchCount() + 1);
-            queryInfoMapper.updateQueryInfo(updateInfo);
-        }
+        // 列表查询不应更新搜索次数，避免性能问题和逻辑错误
         return queryInfoMapper.selectQueryInfoList(queryInfo);
     }
 
@@ -157,6 +159,13 @@ public class QueryInfoServiceImpl implements IQueryInfoService {
                 validateQueryInfo(info);
                 QueryInfo existingInfo = queryInfoMapper.selectByInfoTitle(info.getInfoTitle());
                 if (existingInfo == null) {
+                    // 补全默认值，保持与insertQueryInfo逻辑一致
+                    if (info.getSearchCount() == null) {
+                        info.setSearchCount(0);
+                    }
+                    if (StringUtils.isEmpty(info.getStatus())) {
+                        info.setStatus("0");
+                    }
                     info.setCreateBy(operName);
                     info.setCreateTime(new Date());
                     queryInfoMapper.insertQueryInfo(info);

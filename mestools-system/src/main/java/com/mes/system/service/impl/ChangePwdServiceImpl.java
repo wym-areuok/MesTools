@@ -60,27 +60,27 @@ public class ChangePwdServiceImpl implements IChangePwdService {
                     return iptfisDb71DataSource;
                 }
                 if (!iptfisDb71Enabled) {
-                    throw new RuntimeException("数据源 IPTFIS-DB-71 未启用");
+                    throw new ServiceException("数据源 IPTFIS-DB-71 未启用");
                 }
-                throw new RuntimeException("数据源 IPTFIS-DB-71 未配置");
+                throw new ServiceException("数据源 IPTFIS-DB-71 未配置");
             case "IPTFIS-DB-70":
                 if (iptfisDb70DataSource != null && iptfisDb70Enabled) {
                     return iptfisDb70DataSource;
                 }
                 if (!iptfisDb70Enabled) {
-                    throw new RuntimeException("数据源 IPTFIS-DB-70 未启用");
+                    throw new ServiceException("数据源 IPTFIS-DB-70 未启用");
                 }
-                throw new RuntimeException("数据源 IPTFIS-DB-70 未配置");
+                throw new ServiceException("数据源 IPTFIS-DB-70 未配置");
             case "ITEFIS-DB-ONLINE":
                 if (itefisDbOnlineDataSource != null && itefisDbOnlineEnabled) {
                     return itefisDbOnlineDataSource;
                 }
                 if (!itefisDbOnlineEnabled) {
-                    throw new RuntimeException("数据源 ITEFIS-DB-ONLINE 未启用");
+                    throw new ServiceException("数据源 ITEFIS-DB-ONLINE 未启用");
                 }
-                throw new RuntimeException("数据源 ITEFIS-DB-ONLINE 未配置");
+                throw new ServiceException("数据源 ITEFIS-DB-ONLINE 未配置");
             default:
-                throw new RuntimeException("未知数据库名称: " + dbName + ",请检查是否已在字典中维护");
+                throw new ServiceException("未知数据库名称: " + dbName + ",请检查是否已在字典中维护");
         }
     }
 
@@ -95,16 +95,12 @@ public class ChangePwdServiceImpl implements IChangePwdService {
     @Override
     public boolean changePwd(String fisNumber, String password, String dbDataSource) {
         // 根据dbDataSource获取对应的数据源
-        DataSource dataSource;
-        try {
-            dataSource = getDataSourceByDbName(dbDataSource != null ? dbDataSource : "LOCALHOST");
-        } catch (RuntimeException e) {
-            throw new ServiceException(e.getMessage());
-        }
+        DataSource dataSource = getDataSourceByDbName(dbDataSource != null ? dbDataSource : "LOCALHOST");
         JdbcTemplate template = new JdbcTemplate(dataSource);
         // 从fis_web_pwd_info字典获取label为FISWEB_DB_TABLE的value作为tableName
         // 获取表名
         String tableName = dictDataService.selectDictByTypeAndLabel("fis_web_pwd_info", "FISWEB_DB_TABLE");
+        if (tableName != null) tableName = tableName.trim();
         if (tableName == null || tableName.isEmpty()) {
             throw new ServiceException("未找到FisWeb密码表配置信息");
         }
