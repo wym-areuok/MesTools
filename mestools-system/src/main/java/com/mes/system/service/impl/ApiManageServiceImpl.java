@@ -307,10 +307,11 @@ public class ApiManageServiceImpl implements IApiManageService {
             if (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) {
                 throw new ServiceException("仅支持 HTTP/HTTPS 协议");
             }
-            InetAddress address = InetAddress.getByName(url.getHost());
+            //对于内部访问进行放行
+            /*InetAddress address = InetAddress.getByName(url.getHost());
             if (address.isLoopbackAddress() || address.isSiteLocalAddress() || address.isAnyLocalAddress() || address.isLinkLocalAddress()) {
                 throw new ServiceException("禁止访问内部网络地址");
-            }
+            }*/
         } catch (Exception e) {
             throw new ServiceException("URL 安全校验失败: " + e.getMessage());
         }

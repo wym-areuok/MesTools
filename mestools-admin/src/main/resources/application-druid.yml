@@ -6,9 +6,9 @@ spring:
     druid:
       # 主库数据源
       master:
-        url: jdbc:sqlserver://localhost:1433;databaseName=dailytools
-        username: root
-        password: root
+        url: jdbc:sqlserver://192.168.16.178:1433;databaseName=dailytools
+        username: fisya
+        password: gogofis
 
       # 从库数据源
       slave:
