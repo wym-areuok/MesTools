@@ -36,18 +36,10 @@
         from api_manage_item
     </sql>
 
-    <!-- 查询接口树 (排除环境) -->
+    <!-- 查询接口树 -->
     <select id="selectApiTreeList" resultMap="ApiManageItemResult">
         <include refid="selectApiManageItemVo"/>
-        where item_type != 'env'
         order by sort_order, create_time
-    </select>
-
-    <!-- 查询环境列表 -->
-    <select id="selectEnvList" resultMap="ApiManageItemResult">
-        <include refid="selectApiManageItemVo"/>
-        where item_type = 'env'
-        order by create_time
     </select>
 
     <select id="selectApiManageItemById" parameterType="Long" resultMap="ApiManageItemResult">
@@ -129,9 +121,5 @@
 
     <delete id="deleteApiManageItemById" parameterType="Long">
         delete from api_manage_item where item_id = #{itemId}
-    </delete>
-
-    <delete id="deleteEnvItems">
-        delete from api_manage_item where item_type = 'env'
     </delete>
 </mapper>

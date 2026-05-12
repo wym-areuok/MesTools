@@ -13,9 +13,6 @@ public interface ApiManageItemMapper {
     // 查询所有非环境节点 (用于构建树)
     List<ApiManageItem> selectApiTreeList();
 
-    // 查询所有环境节点
-    List<ApiManageItem> selectEnvList();
-
     // 根据ID查询
     ApiManageItem selectApiManageItemById(Long itemId);
 
@@ -27,8 +24,4 @@ public interface ApiManageItemMapper {
 
     // 删除
     int deleteApiManageItemById(Long itemId);
-
-    // 删除所有环境 (用于批量保存时的重置)
-    int deleteEnvItems();
 }
-

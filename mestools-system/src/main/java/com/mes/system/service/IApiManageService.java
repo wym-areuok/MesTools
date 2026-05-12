@@ -15,8 +15,6 @@ import java.util.Map;
 public interface IApiManageService {
     List<ApiManageItem> selectApiTree();
 
-    List<ApiManageItem> selectEnvList();
-
     ApiManageItem selectApiManageItemById(Long itemId);
 
     int insertApiManageItem(ApiManageItem apiManageItem);
@@ -25,18 +23,12 @@ public interface IApiManageService {
 
     int deleteApiManageItemById(Long itemId);
 
-    void saveEnvList(List<ApiManageItem> envList);
-
     List<ApiManageHistory> selectHistoryList(ApiManageHistory history);
 
     int insertHistory(ApiManageHistory history);
 
     // 代理请求
     Map<String, Object> proxyRequest(ProxyRequestDto proxyRequest);
-
-    Map<String, Object> exportData();
-
-    void importData(Map<String, Object> data);
 
     int toggleLock(Long itemId, Integer isLocked);
 }

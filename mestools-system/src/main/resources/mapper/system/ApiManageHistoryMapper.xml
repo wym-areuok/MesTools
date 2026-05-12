@@ -23,7 +23,7 @@
     <select id="selectApiManageHistoryList" parameterType="ApiManageHistory" resultMap="ApiManageHistoryResult">
         <include refid="selectApiManageHistoryVo"/>
         <where>
-            <if test="itemId != null ">and item_id = #{itemId}</if>
+            <if test="itemId != null">and item_id = #{itemId}</if>
         </where>
         order by create_time desc
     </select>

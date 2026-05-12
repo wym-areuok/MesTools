@@ -5,7 +5,6 @@ import com.mes.common.core.controller.BaseController;
 import com.mes.common.core.domain.AjaxResult;
 import com.mes.common.core.page.TableDataInfo;
 import com.mes.common.enums.BusinessType;
-import com.mes.common.utils.SecurityUtils;
 import com.mes.system.domain.ApiManageHistory;
 import com.mes.system.domain.ApiManageItem;
 import com.mes.system.domain.dto.ProxyRequestDto;
@@ -28,11 +27,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/dailytools/apiManage")
 public class ApiManageController extends BaseController {
-
     @Autowired
     private IApiManageService apiManageService;
-
-    // --- 接口树管理 ---
 
     @GetMapping("/tree")
     @ApiOperation("获取接口树")
@@ -87,30 +83,6 @@ public class ApiManageController extends BaseController {
         return toAjax(apiManageService.toggleLock(itemId, isLocked));
     }
 
-    // --- 环境管理 ---
-
-    @GetMapping("/env/list")
-    @ApiOperation("获取环境列表")
-    @PreAuthorize("@ss.hasPermi('dailyTools:apiManage:list')")
-    public AjaxResult listEnv() {
-        return AjaxResult.success(apiManageService.selectEnvList());
-    }
-
-    @PostMapping("/env/batch")
-    @ApiOperation("批量保存环境")
-    @Log(title = "接口管理-环境配置", businessType = BusinessType.UPDATE)
-    @PreAuthorize("@ss.hasPermi('dailyTools:apiManage:edit')")
-    public AjaxResult saveEnvList(@RequestBody List<ApiManageItem> envList) {
-        String username = SecurityUtils.getUsername();
-        for (ApiManageItem item : envList) {
-            item.setCreateBy(username);
-        }
-        apiManageService.saveEnvList(envList);
-        return AjaxResult.success();
-    }
-
-    // --- 历史记录 ---
-
     @GetMapping("/history/list")
     @ApiOperation("获取历史记录")
     @PreAuthorize("@ss.hasPermi('dailyTools:apiManage:list')")
@@ -128,32 +100,11 @@ public class ApiManageController extends BaseController {
         return toAjax(apiManageService.insertHistory(history));
     }
 
-    // --- 代理请求 ---
-
-    @PostMapping("/proxy")
     @ApiOperation("发送代理请求")
     @Log(title = "接口管理-代理请求", businessType = BusinessType.OTHER, isSaveResponseData = false)
     @PreAuthorize("@ss.hasPermi('dailyTools:apiManage:list')")
     public AjaxResult proxyRequest(@RequestBody ProxyRequestDto proxyRequest) {
         Map<String, Object> result = apiManageService.proxyRequest(proxyRequest);
         return AjaxResult.success(result);
-    }
-
-    // --- 导入导出 ---
-
-    @GetMapping("/export")
-    @ApiOperation("导出备份数据")
-    @PreAuthorize("@ss.hasPermi('dailyTools:apiManage:export')")
-    public AjaxResult export() {
-        return AjaxResult.success(apiManageService.exportData());
-    }
-
-    @PostMapping("/import")
-    @ApiOperation("导入备份数据")
-    @Log(title = "接口管理-导入", businessType = BusinessType.IMPORT)
-    @PreAuthorize("@ss.hasPermi('dailyTools:apiManage:import')")
-    public AjaxResult importData(@RequestBody Map<String, Object> data) {
-        apiManageService.importData(data);
-        return AjaxResult.success();
     }
 }

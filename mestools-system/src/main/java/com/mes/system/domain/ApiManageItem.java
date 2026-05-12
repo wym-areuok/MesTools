@@ -11,7 +11,7 @@ import java.util.List;
  * @Author: weiyiming
  * @CreateTime: 2025-12-26
  * @Description: 接口管理对象
- * (采用单表多态设计，通过 item_type 区分不同类型的实体)
+ * (采用单表设计，通过 item_type 区分目录与接口)
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -29,17 +29,17 @@ public class ApiManageItem extends BaseEntity {
     private Long parentId;
 
     /**
-     * 【复用】名称 (接口名称 / 环境名称 / 分组名称)
+     * 名称 (接口名称 / 分组名称)
      */
     private String itemName;
 
     /**
-     * 【核心】类型: 'group'(分组), 'api'(接口), 'env'(环境)
+     * 类型: 'group'(分组), 'api'(接口)
      */
     private String itemType;
 
     /**
-     * 【复用】唯一标识 (环境Key, 如 'dev')
+     * 唯一标识
      */
     private String itemKey;
 
@@ -49,7 +49,7 @@ public class ApiManageItem extends BaseEntity {
     private String reqMethod;
 
     /**
-     * 【复用】请求地址 (API: 接口路径; Env: 基础URL)
+     * 请求地址 (API 接口路径)
      */
     private String reqUrl;
 
@@ -74,7 +74,7 @@ public class ApiManageItem extends BaseEntity {
     private String reqBodyType;
 
     /**
-     * 【复用】请求体内容 (API: Body内容; Env: 环境变量JSON)
+     * 请求体内容 (JSON 字符串)
      */
     private String reqBodyJson;
 
