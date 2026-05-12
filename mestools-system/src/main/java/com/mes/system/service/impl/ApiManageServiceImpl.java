@@ -12,7 +12,9 @@ import com.mes.system.mapper.ApiManageItemMapper;
 import com.mes.system.service.IApiManageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import javax.annotation.PostConstruct;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -23,6 +25,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+
 import java.net.URL;
 import java.util.*;
 
@@ -73,13 +76,21 @@ public class ApiManageServiceImpl implements IApiManageService {
 
     @Override
     public int updateApiManageItem(ApiManageItem apiManageItem) {
-        // 检查是否被锁定
         ApiManageItem existingItem = apiManageItemMapper.selectApiManageItemById(apiManageItem.getItemId());
-        if (existingItem != null && existingItem.getIsLocked() != null && existingItem.getIsLocked() == 1) {
-            // 允许更新 parentId (拖拽) 和 isLocked (解锁操作会走 toggleLock，但防止意外)
-            if (apiManageItem.getParentId() == null && apiManageItem.getIsLocked() == null) {
-                throw new ServiceException("该接口已被锁定，无法修改");
+        if (existingItem != null && Integer.valueOf(1).equals(existingItem.getIsLocked())) {
+            // 1. 锁定状态下，禁止通过此通用更新接口修改锁定状态(isLocked)，解锁必须走 toggleLock 接口
+            // 2. 锁定状态下，只允许“移动(parentId)”操作，其他字段一律屏蔽
+            if (apiManageItem.getParentId() == null) {
+                throw new ServiceException("该接口已被锁定，无法修改其内容");
             }
+            // 优化：采用白名单模式。创建一个只包含 ID 和 ParentID 的新对象进行更新，彻底杜绝其他字段被篡改的可能
+            ApiManageItem moveNode = new ApiManageItem();
+            moveNode.setItemId(apiManageItem.getItemId());
+            moveNode.setParentId(apiManageItem.getParentId());
+            moveNode.setUpdateBy(apiManageItem.getUpdateBy());
+            moveNode.setUpdateTime(DateUtils.getNowDate());
+            // 直接返回该精简对象的更新结果
+            return apiManageItemMapper.updateApiManageItem(moveNode);
         }
         apiManageItem.setUpdateTime(DateUtils.getNowDate());
         return apiManageItemMapper.updateApiManageItem(apiManageItem);
@@ -148,6 +159,7 @@ public class ApiManageServiceImpl implements IApiManageService {
             result.put("size", response.getBody() != null ? response.getBody().length() + " B" : "0 B");
 
         } catch (HttpClientErrorException | HttpServerErrorException e) {
+            resStatus = e.getStatusCode().value();
             result.put("status", resStatus);
             result.put("statusText", e.getStatusText());
             result.put("data", e.getResponseBodyAsString());

@@ -101,6 +101,7 @@ public class ApiManageController extends BaseController {
     }
 
     @ApiOperation("发送代理请求")
+    @PostMapping("/proxy")
     @Log(title = "接口管理-代理请求", businessType = BusinessType.OTHER, isSaveResponseData = false)
     @PreAuthorize("@ss.hasPermi('dailyTools:apiManage:list')")
     public AjaxResult proxyRequest(@RequestBody ProxyRequestDto proxyRequest) {
