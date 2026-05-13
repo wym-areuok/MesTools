@@ -7,7 +7,7 @@ mestools:
   # 版权年份
   copyrightYear: 2025
   # 文件路径 示例（ Windows配置D:/mestools/uploadPath，Linux配置 /home/mestools/uploadPath）
-  profile: D:/MesToolsUploadPath/uploadPath
+  profile: ./uploadPath
   # 获取ip地址开关
   addressEnabled: false
   # 验证码类型 math 数字计算 char 字符验证
@@ -15,7 +15,7 @@ mestools:
 
 # 开发环境配置
 server:
-  # 服务器的HTTP端口，默认为8080
+  # 服务器的HTTP端口，默认为8080 ITE测试环境中是8888端口
   port: 8080
   servlet:
     # 应用的访问路径
