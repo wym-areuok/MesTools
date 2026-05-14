@@ -1,5 +1,6 @@
 package com.mes.framework.web.service;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -118,6 +119,21 @@ public class TokenService {
         long currentTime = System.currentTimeMillis();
         if (expireTime - currentTime <= MILLIS_MINUTE_TWENTY) {
             refreshToken(loginUser);
+        }
+    }
+
+    /**
+     * 根据用户名删除用户登录信息
+     *
+     * @param username 用户名
+     */
+    public void deleteLoginUserByUsername(String username) {
+        Collection<String> keys = redisCache.keys(CacheConstants.LOGIN_TOKEN_KEY + "*");
+        for (String key : keys) {
+            LoginUser user = redisCache.getCacheObject(key);
+            if (StringUtils.isNotNull(user) && user.getUsername().equals(username)) {
+                redisCache.deleteObject(key);
+            }
         }
     }
 

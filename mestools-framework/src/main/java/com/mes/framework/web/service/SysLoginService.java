@@ -12,6 +12,7 @@ import com.mes.common.constant.CacheConstants;
 import com.mes.common.constant.Constants;
 import com.mes.common.constant.UserConstants;
 import com.mes.common.core.domain.model.LoginUser;
+import com.mes.common.core.text.Convert;
 import com.mes.common.core.redis.RedisCache;
 import com.mes.common.exception.ServiceException;
 import com.mes.common.exception.user.BlackListException;
@@ -83,6 +84,13 @@ public class SysLoginService {
         } finally {
             AuthenticationContextHolder.clearContext();
         }
+
+        // 只有在身份验证通过后，才检查并执行踢人操作（安全性优化）
+        boolean soloLogin = Convert.toBool(configService.selectConfigByKey("sys.account.soloLogin"), false);
+        if (soloLogin) {
+            tokenService.deleteLoginUserByUsername(username);
+        }
+
         AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_SUCCESS, MessageUtils.message("user.login.success")));
         LoginUser loginUser = (LoginUser) authentication.getPrincipal();
         recordLoginInfo(loginUser.getUserId());
