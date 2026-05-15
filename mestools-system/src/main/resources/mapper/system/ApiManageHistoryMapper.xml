@@ -50,4 +50,8 @@
             <if test="createTime != null">#{createTime},</if>
         </trim>
     </insert>
+
+    <delete id="deleteApiManageHistoryByItemId" parameterType="Long">
+        delete from api_manage_history where item_id = #{itemId}
+    </delete>
 </mapper>

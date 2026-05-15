@@ -13,4 +13,11 @@ public interface ApiManageHistoryMapper {
     List<ApiManageHistory> selectApiManageHistoryList(ApiManageHistory history);
 
     int insertApiManageHistory(ApiManageHistory history);
+
+    /**
+     * 根据接口项ID删除关联的请求历史
+     *
+     * @param itemId 接口项ID
+     */
+    void deleteApiManageHistoryByItemId(Long itemId);
 }

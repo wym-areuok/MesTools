@@ -12,6 +12,9 @@ import com.mes.system.mapper.ApiManageItemMapper;
 import com.mes.system.service.IApiManageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 
@@ -19,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
@@ -26,6 +30,8 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.nio.charset.StandardCharsets;
+import java.net.URI;
 import java.net.URL;
 import java.util.*;
 
@@ -55,6 +61,12 @@ public class ApiManageServiceImpl implements IApiManageService {
             factory.setConnectTimeout(10000);
             factory.setReadTimeout(10000);
         }
+        // 强制设置 StringHttpMessageConverter 的默认字符集为 UTF-8，防止中文乱码
+        restTemplate.getMessageConverters().forEach(converter -> {
+            if (converter instanceof StringHttpMessageConverter) {
+                ((StringHttpMessageConverter) converter).setDefaultCharset(StandardCharsets.UTF_8);
+            }
+        });
     }
 
     @Override
@@ -97,12 +109,43 @@ public class ApiManageServiceImpl implements IApiManageService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteApiManageItemById(Long itemId) {
-        ApiManageItem existingItem = apiManageItemMapper.selectApiManageItemById(itemId);
-        if (existingItem != null && existingItem.getIsLocked() != null && existingItem.getIsLocked() == 1) {
-            throw new ServiceException("该接口已被锁定，无法删除");
+        // 1. 获取所有节点以辅助计算子树结构
+        List<ApiManageItem> allItems = apiManageItemMapper.selectApiTreeList();
+        Map<Long, ApiManageItem> itemMap = allItems.stream().collect(Collectors.toMap(ApiManageItem::getItemId, i -> i, (k1, k2) -> k1));
+        // 2. 收集所有待删除的 ID (包含当前节点及其所有子孙节点)
+        List<Long> deleteIds = new ArrayList<>();
+        findAllDescendantIds(itemId, allItems, deleteIds);
+        if (deleteIds.isEmpty()) {
+            return 0;
         }
-        return apiManageItemMapper.deleteApiManageItemById(itemId);
+        // 3. 级联校验锁定状态：如果待删除节点中包含任何被锁定的节点，则中止操作并提醒用户
+        for (Long id : deleteIds) {
+            ApiManageItem item = itemMap.get(id);
+            if (item != null && Integer.valueOf(1).equals(item.getIsLocked())) {
+                throw new ServiceException("无法删除！节点 [" + item.getItemName() + "] 已被锁定，请先解锁后再执行删除操作。");
+            }
+        }
+        // 4. 执行级联删除：先删除相关的历史记录，再删除接口/目录项
+        int rows = 0;
+        for (Long id : deleteIds) {
+            apiManageHistoryMapper.deleteApiManageHistoryByItemId(id);
+            rows += apiManageItemMapper.deleteApiManageItemById(id);
+        }
+        return rows;
+    }
+
+    /**
+     * 递归收集所有后代节点 ID
+     */
+    private void findAllDescendantIds(Long parentId, List<ApiManageItem> allItems, List<Long> resultIds) {
+        resultIds.add(parentId);
+        for (ApiManageItem item : allItems) {
+            if (parentId.equals(item.getParentId())) {
+                findAllDescendantIds(item.getItemId(), allItems, resultIds);
+            }
+        }
     }
 
     @Override
@@ -119,7 +162,7 @@ public class ApiManageServiceImpl implements IApiManageService {
     @Override
     public Map<String, Object> proxyRequest(ProxyRequestDto dto) {
         Map<String, Object> result = new HashMap<>();
-        String finalUrl = dto.getUrl();
+        String finalUrl = StringUtils.trim(dto.getUrl());
         int resStatus = 0;
         long startTime = System.currentTimeMillis();
 
@@ -142,14 +185,17 @@ public class ApiManageServiceImpl implements IApiManageService {
                 }
             }
             HttpEntity<Object> entity = new HttpEntity<>(body, headers);
+
+            // 改进 URL 构建逻辑：使用 URI 对象避免二次编码，并正确合并 Query 参数
+            UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(finalUrl);
             if (dto.getParams() != null && !dto.getParams().isEmpty()) {
-                UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(finalUrl);
                 dto.getParams().forEach(uriBuilder::queryParam);
-                finalUrl = uriBuilder.build().toUriString();
             }
+            URI uri = uriBuilder.build().encode().toUri();
+            finalUrl = uri.toString(); // 用于历史记录的完整 URL
 
             HttpMethod method = HttpMethod.valueOf(dto.getMethod().toUpperCase());
-            ResponseEntity<String> response = restTemplate.exchange(finalUrl, method, entity, String.class);
+            ResponseEntity<String> response = restTemplate.exchange(uri, method, entity, String.class);
 
             resStatus = response.getStatusCode().value();
             result.put("status", resStatus);
@@ -229,7 +275,10 @@ public class ApiManageServiceImpl implements IApiManageService {
      */
     private void validateUrl(String urlString) {
         try {
-            URL url = new URL(urlString);
+            if (StringUtils.isEmpty(urlString)) {
+                throw new ServiceException("URL 不能为空");
+            }
+            URL url = new URL(urlString.trim());
             String protocol = url.getProtocol();
             if (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) {
                 throw new ServiceException("仅支持 HTTP/HTTPS 协议");
