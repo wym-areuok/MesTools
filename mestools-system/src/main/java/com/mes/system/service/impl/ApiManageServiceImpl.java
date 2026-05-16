@@ -82,6 +82,13 @@ public class ApiManageServiceImpl implements IApiManageService {
 
     @Override
     public int insertApiManageItem(ApiManageItem apiManageItem) {
+        // 深度测试修复：校验父节点是否被锁定，如果父节点锁定，禁止在其下新增内容
+        if (apiManageItem.getParentId() != null && apiManageItem.getParentId() != 0) {
+            ApiManageItem parent = apiManageItemMapper.selectApiManageItemById(apiManageItem.getParentId());
+            if (parent != null && Integer.valueOf(1).equals(parent.getIsLocked())) {
+                throw new ServiceException("无法新增！父级目录 [" + parent.getItemName() + "] 已被锁定。");
+            }
+        }
         apiManageItem.setCreateTime(DateUtils.getNowDate());
         return apiManageItemMapper.insertApiManageItem(apiManageItem);
     }
@@ -89,7 +96,17 @@ public class ApiManageServiceImpl implements IApiManageService {
     @Override
     public int updateApiManageItem(ApiManageItem apiManageItem) {
         ApiManageItem existingItem = apiManageItemMapper.selectApiManageItemById(apiManageItem.getItemId());
-        if (existingItem != null && Integer.valueOf(1).equals(existingItem.getIsLocked())) {
+        if (existingItem == null) return 0;
+
+        // 深度测试修复：如果目标父节点被锁定，禁止将节点移入
+        if (apiManageItem.getParentId() != null && !apiManageItem.getParentId().equals(existingItem.getParentId())) {
+            ApiManageItem newParent = apiManageItemMapper.selectApiManageItemById(apiManageItem.getParentId());
+            if (newParent != null && Integer.valueOf(1).equals(newParent.getIsLocked())) {
+                throw new ServiceException("目标目录已被锁定，无法移入。");
+            }
+        }
+
+        if (Integer.valueOf(1).equals(existingItem.getIsLocked())) {
             // 1. 锁定状态下，禁止通过此通用更新接口修改锁定状态(isLocked)，解锁必须走 toggleLock 接口
             // 2. 锁定状态下，只允许“移动(parentId)”操作，其他字段一律屏蔽
             if (apiManageItem.getParentId() == null) {
@@ -165,10 +182,23 @@ public class ApiManageServiceImpl implements IApiManageService {
         String finalUrl = StringUtils.trim(dto.getUrl());
         int resStatus = 0;
         long startTime = System.currentTimeMillis();
+        String actualMethod = dto.getMethod(); // 记录最终使用的Method
 
         try {
             validateUrl(finalUrl);
             HttpHeaders headers = new HttpHeaders();
+            String methodStr = dto.getMethod();
+
+            // WebService 特殊处理
+            if ("webservice".equalsIgnoreCase(dto.getProtocol())) {
+                methodStr = "POST"; // WebService 强制使用 POST
+                // 如果没有设置 Content-Type，默认给一个常见的 SOAP 1.1 Content-Type
+                if (dto.getHeaders() == null || !dto.getHeaders().keySet().stream().anyMatch(h -> h.equalsIgnoreCase("Content-Type"))) {
+                    headers.setContentType(MediaType.valueOf("text/xml;charset=UTF-8"));
+                }
+            }
+            actualMethod = methodStr; // 更新为实际执行的方法
+
             if (dto.getHeaders() != null) {
                 dto.getHeaders().forEach(headers::add);
             }
@@ -180,7 +210,8 @@ public class ApiManageServiceImpl implements IApiManageService {
                 Map<String, Object> bodyMap = (Map<String, Object>) body;
                 bodyMap.forEach(formBody::add);
                 body = formBody;
-                if (!headers.containsKey(HttpHeaders.CONTENT_TYPE) || MediaType.APPLICATION_JSON.equals(headers.getContentType()) || MediaType.APPLICATION_JSON_UTF8.equals(headers.getContentType())) {
+                // 强制转换：如果是表单类型，且没有显式设置 multipart，则默认使用 URLENCODED
+                if (!headers.containsKey(HttpHeaders.CONTENT_TYPE) || !headers.getContentType().includes(MediaType.MULTIPART_FORM_DATA)) {
                     headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
                 }
             }
@@ -194,7 +225,7 @@ public class ApiManageServiceImpl implements IApiManageService {
             URI uri = uriBuilder.build().encode().toUri();
             finalUrl = uri.toString(); // 用于历史记录的完整 URL
 
-            HttpMethod method = HttpMethod.valueOf(dto.getMethod().toUpperCase());
+            HttpMethod method = HttpMethod.valueOf(methodStr.toUpperCase());
             ResponseEntity<String> response = restTemplate.exchange(uri, method, entity, String.class);
 
             resStatus = response.getStatusCode().value();
@@ -213,14 +244,15 @@ public class ApiManageServiceImpl implements IApiManageService {
         } catch (Exception e) {
             resStatus = 0;
             result.put("status", 0);
-            result.put("statusText", "Error");
-            result.put("data", e.getMessage());
+            result.put("statusText", "Connection Failed");
+            result.put("data", "代理请求失败！可能原因：1.目标地址不可达 2.服务器防火墙拦截 3.DNS解析失败。错误详情: " + e.getMessage());
             logger.error("API Proxy Error: {}", e.getMessage());
         } finally {
             try {
                 ApiManageHistory history = new ApiManageHistory();
                 history.setItemId(dto.getItemId() != null ? dto.getItemId() : 0L);
-                history.setReqMethod(dto.getMethod());
+                // 记录实际发出的方法，避免 methodStr 在异常流程下不可见的问题
+                history.setReqMethod(actualMethod);
                 history.setReqUrl(finalUrl);
                 history.setResStatus(resStatus);
                 history.setDuration((int) (System.currentTimeMillis() - startTime));
@@ -278,12 +310,15 @@ public class ApiManageServiceImpl implements IApiManageService {
             if (StringUtils.isEmpty(urlString)) {
                 throw new ServiceException("URL 不能为空");
             }
-            URL url = new URL(urlString.trim());
+            String trimmedUrl = urlString.trim();
+            if (!trimmedUrl.toLowerCase().startsWith("http")) {
+                throw new ServiceException("无效的 URL 格式，必须以 http:// 或 https:// 开头");
+            }
+            URL url = new URL(trimmedUrl);
             String protocol = url.getProtocol();
             if (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) {
                 throw new ServiceException("仅支持 HTTP/HTTPS 协议");
             }
-            //对于内部访问进行放行
             /*InetAddress address = InetAddress.getByName(url.getHost());
             if (address.isLoopbackAddress() || address.isSiteLocalAddress() || address.isAnyLocalAddress() || address.isLinkLocalAddress()) {
                 throw new ServiceException("禁止访问内部网络地址");

@@ -8,6 +8,7 @@
         <result property="itemId" column="item_id"/>
         <result property="parentId" column="parent_id"/>
         <result property="itemName" column="item_name"/>
+        <result property="protocol" column="protocol"/>
         <result property="itemType" column="item_type"/>
         <result property="itemKey" column="item_key"/>
         <result property="reqMethod" column="req_method"/>
@@ -30,7 +31,7 @@
     </resultMap>
 
     <sql id="selectApiManageItemVo">
-        select item_id, parent_id, item_name, item_type, item_key, req_method, req_url, req_params, req_headers,
+        select item_id, parent_id, item_name, protocol, item_type, item_key, req_method, req_url, req_params, req_headers,
         req_path_params, req_body_type, req_body_json, req_form_data, auth_type, auth_token, response_def, sort_order,
         is_locked, create_by, create_time, update_by, update_time
         from api_manage_item
@@ -52,6 +53,7 @@
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="parentId != null">parent_id,</if>
             <if test="itemName != null and itemName != ''">item_name,</if>
+            <if test="protocol != null">protocol,</if>
             <if test="itemType != null">item_type,</if>
             <if test="itemKey != null">item_key,</if>
             <if test="reqMethod != null">req_method,</if>
@@ -73,6 +75,7 @@
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="parentId != null">#{parentId},</if>
             <if test="itemName != null and itemName != ''">#{itemName},</if>
+            <if test="protocol != null">#{protocol},</if>
             <if test="itemType != null">#{itemType},</if>
             <if test="itemKey != null">#{itemKey},</if>
             <if test="reqMethod != null">#{reqMethod},</if>
@@ -98,6 +101,7 @@
         <trim prefix="SET" suffixOverrides=",">
             <if test="parentId != null">parent_id = #{parentId},</if>
             <if test="itemName != null and itemName != ''">item_name = #{itemName},</if>
+            <if test="protocol != null">protocol = #{protocol},</if>
             <if test="itemType != null">item_type = #{itemType},</if>
             <if test="itemKey != null">item_key = #{itemKey},</if>
             <if test="reqMethod != null">req_method = #{reqMethod},</if>

@@ -22,6 +22,11 @@ public class ProxyRequestDto {
     private String method;
 
     /**
+     * 协议类型
+     */
+    private String protocol;
+
+    /**
      * 请求地址
      */
     private String url;

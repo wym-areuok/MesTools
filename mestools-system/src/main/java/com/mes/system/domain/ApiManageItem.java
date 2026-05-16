@@ -34,6 +34,11 @@ public class ApiManageItem extends BaseEntity {
     private String itemName;
 
     /**
+     * 协议类型: 'http', 'webservice'
+     */
+    private String protocol;
+
+    /**
      * 类型: 'group'(分组), 'api'(接口)
      */
     private String itemType;
