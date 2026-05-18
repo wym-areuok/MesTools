@@ -31,4 +31,8 @@ public interface IApiManageService {
     Map<String, Object> proxyRequest(ProxyRequestDto proxyRequest);
 
     int toggleLock(Long itemId, Integer isLocked);
+
+    int deleteHistoryById(Long historyId);
+
+    int clearHistoryByItemId(Long itemId);
 }

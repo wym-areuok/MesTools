@@ -187,21 +187,30 @@ public class ApiManageServiceImpl implements IApiManageService {
         try {
             validateUrl(finalUrl);
             HttpHeaders headers = new HttpHeaders();
-            String methodStr = dto.getMethod();
+            String methodStr = StringUtils.defaultIfEmpty(dto.getMethod(), "GET");
 
-            // WebService 特殊处理
-            if ("webservice".equalsIgnoreCase(dto.getProtocol())) {
-                methodStr = "POST"; // WebService 强制使用 POST
-                // 如果没有设置 Content-Type，默认给一个常见的 SOAP 1.1 Content-Type
-                if (dto.getHeaders() == null || !dto.getHeaders().keySet().stream().anyMatch(h -> h.equalsIgnoreCase("Content-Type"))) {
-                    headers.setContentType(MediaType.valueOf("text/xml;charset=UTF-8"));
-                }
-            }
-            actualMethod = methodStr; // 更新为实际执行的方法
-
+            // 1. 先加载用户自定义的 Headers
             if (dto.getHeaders() != null) {
                 dto.getHeaders().forEach(headers::add);
             }
+
+            // 2. WebService 协议特殊兼容性处理
+            if ("webservice".equalsIgnoreCase(dto.getProtocol())) {
+                methodStr = "POST"; // WebService 强制使用 POST
+
+                // 如果用户没有手动设置 Content-Type，则根据 Body 内容自动识别 SOAP 版本
+                if (!headers.containsKey(HttpHeaders.CONTENT_TYPE)) {
+                    String bodyStr = (dto.getBody() != null) ? String.valueOf(dto.getBody()) : "";
+                    // SOAP 1.2 使用 application/soap+xml，特征是命名空间为 2003/05
+                    if (bodyStr.contains("http://www.w3.org/2003/05/soap-envelope")) {
+                        headers.setContentType(MediaType.valueOf("application/soap+xml;charset=UTF-8"));
+                    } else {
+                        // 默认使用 SOAP 1.1 (text/xml)
+                        headers.setContentType(MediaType.valueOf("text/xml;charset=UTF-8"));
+                    }
+                }
+            }
+            actualMethod = methodStr; // 更新为实际执行的方法
 
             Object body = dto.getBody();
             if ("form".equals(dto.getBodyType()) && body instanceof Map) {
@@ -275,6 +284,17 @@ public class ApiManageServiceImpl implements IApiManageService {
         item.setUpdateBy(SecurityUtils.getUsername());
         item.setUpdateTime(DateUtils.getNowDate());
         return apiManageItemMapper.updateApiManageItem(item);
+    }
+
+    @Override
+    public int deleteHistoryById(Long historyId) {
+        return apiManageHistoryMapper.deleteApiManageHistoryById(historyId);
+    }
+
+    @Override
+    public int clearHistoryByItemId(Long itemId) {
+        apiManageHistoryMapper.deleteApiManageHistoryByItemId(itemId);
+        return 1;
     }
 
     // 递归构建树

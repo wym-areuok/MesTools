@@ -12,6 +12,13 @@ import java.util.List;
 public interface ApiManageHistoryMapper {
     List<ApiManageHistory> selectApiManageHistoryList(ApiManageHistory history);
 
+    /**
+     * 删除单条历史记录
+     *
+     * @param historyId 历史记录ID
+     */
+    int deleteApiManageHistoryById(Long historyId);
+
     int insertApiManageHistory(ApiManageHistory history);
 
     /**

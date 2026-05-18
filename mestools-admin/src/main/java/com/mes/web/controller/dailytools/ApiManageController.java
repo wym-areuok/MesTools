@@ -108,4 +108,18 @@ public class ApiManageController extends BaseController {
         Map<String, Object> result = apiManageService.proxyRequest(proxyRequest);
         return AjaxResult.success(result);
     }
+
+    @DeleteMapping("/history/{historyId}")
+    @ApiOperation("删除历史记录")
+    @PreAuthorize("@ss.hasPermi('dailyTools:apiManage:remove')")
+    public AjaxResult removeHistory(@PathVariable("historyId") Long historyId) {
+        return toAjax(apiManageService.deleteHistoryById(historyId));
+    }
+
+    @DeleteMapping("/history/clear/{itemId}")
+    @ApiOperation("清空历史记录")
+    @PreAuthorize("@ss.hasPermi('dailyTools:apiManage:remove')")
+    public AjaxResult clearHistory(@PathVariable("itemId") Long itemId) {
+        return toAjax(apiManageService.clearHistoryByItemId(itemId));
+    }
 }

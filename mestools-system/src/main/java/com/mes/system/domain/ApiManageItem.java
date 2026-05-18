@@ -44,11 +44,6 @@ public class ApiManageItem extends BaseEntity {
     private String itemType;
 
     /**
-     * 唯一标识
-     */
-    private String itemKey;
-
-    /**
      * 请求方式 (GET, POST, etc.)
      */
     private String reqMethod;
@@ -87,16 +82,6 @@ public class ApiManageItem extends BaseEntity {
      * FormData (JSON 字符串)
      */
     private String reqFormData;
-
-    /**
-     * 鉴权类型 (none, bearer, etc.)
-     */
-    private String authType;
-
-    /**
-     * 鉴权Token
-     */
-    private String authToken;
 
     /**
      * 响应定义 (JSON 字符串)

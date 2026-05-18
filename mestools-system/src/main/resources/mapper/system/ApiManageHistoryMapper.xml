@@ -51,6 +51,10 @@
         </trim>
     </insert>
 
+    <delete id="deleteApiManageHistoryById" parameterType="Long">
+        delete from api_manage_history where history_id = #{historyId}
+    </delete>
+
     <delete id="deleteApiManageHistoryByItemId" parameterType="Long">
         delete from api_manage_history where item_id = #{itemId}
     </delete>
