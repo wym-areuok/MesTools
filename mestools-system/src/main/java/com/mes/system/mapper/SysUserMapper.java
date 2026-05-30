@@ -144,4 +144,20 @@ public interface SysUserMapper {
      * @return 结果
      */
     public SysUser checkEmailUnique(String email);
+
+    /**
+     * 校验工号是否唯一
+     *
+     * @param userNum 用户工号
+     * @return 结果
+     */
+    public SysUser checkWorkNumUnique(String userNum);
+
+    /**
+     * 校验FIS账号是否唯一
+     *
+     * @param fisAccount FIS账号
+     * @return 结果
+     */
+    public SysUser checkFisNumUnique(String fisAccount);
 }

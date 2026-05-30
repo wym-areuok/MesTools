@@ -195,6 +195,40 @@ public class SysUserServiceImpl implements ISysUserService {
     }
 
     /**
+     * 校验用户工号是否唯一
+     *
+     * @param user 用户信息
+     * @return 结果
+     */
+    @Override
+    public boolean checkWorkNumUnique(SysUser user) {
+        Long userId = StringUtils.isNull(user.getUserId()) ? -1L : user.getUserId();
+        String workNumber = StringUtils.upperCase(user.getWorkNumber());
+        SysUser info = userMapper.checkWorkNumUnique(workNumber);
+        if (StringUtils.isNotNull(info) && info.getUserId().longValue() != userId.longValue()) {
+            return UserConstants.NOT_UNIQUE;
+        }
+        return UserConstants.UNIQUE;
+    }
+
+    /**
+     * 校验FIS账号是否唯一
+     *
+     * @param user 用户信息
+     * @return 结果
+     */
+    @Override
+    public boolean checkFisNumUnique(SysUser user) {
+        Long userId = StringUtils.isNull(user.getUserId()) ? -1L : user.getUserId();
+        String fisNumber = StringUtils.upperCase(user.getFisNumber());
+        SysUser info = userMapper.checkFisNumUnique(fisNumber);
+        if (StringUtils.isNotNull(info) && info.getUserId().longValue() != userId.longValue()) {
+            return UserConstants.NOT_UNIQUE;
+        }
+        return UserConstants.UNIQUE;
+    }
+
+    /**
      * 校验用户是否允许操作
      *
      * @param user 用户信息
@@ -232,6 +266,8 @@ public class SysUserServiceImpl implements ISysUserService {
     @Override
     @Transactional
     public int insertUser(SysUser user) {
+        user.setWorkNumber(StringUtils.upperCase(user.getWorkNumber()));
+        user.setFisNumber(StringUtils.upperCase(user.getFisNumber()));
         // 新增用户信息
         int rows = userMapper.insertUser(user);
         // 新增用户岗位关联
@@ -261,6 +297,8 @@ public class SysUserServiceImpl implements ISysUserService {
     @Override
     @Transactional
     public int updateUser(SysUser user) {
+        user.setWorkNumber(StringUtils.upperCase(user.getWorkNumber()));
+        user.setFisNumber(StringUtils.upperCase(user.getFisNumber()));
         Long userId = user.getUserId();
         // 删除用户与角色关联
         userRoleMapper.deleteUserRoleByUserId(userId);
@@ -459,10 +497,22 @@ public class SysUserServiceImpl implements ISysUserService {
         StringBuilder failureMsg = new StringBuilder();
         for (SysUser user : userList) {
             try {
+                user.setWorkNumber(StringUtils.upperCase(user.getWorkNumber()));
+                user.setFisNumber(StringUtils.upperCase(user.getFisNumber()));
                 // 验证是否存在这个用户
                 SysUser u = userMapper.selectUserByUserName(user.getUserName());
                 if (StringUtils.isNull(u)) {
                     BeanValidators.validateWithException(validator, user);
+                    if (StringUtils.isNotEmpty(user.getWorkNumber()) && !checkWorkNumUnique(user)) {
+                        failureNum++;
+                        failureMsg.append("<br/>" + failureNum + "、账号 " + user.getUserName() + " 导入失败：工号已存在");
+                        continue;
+                    }
+                    if (StringUtils.isNotEmpty(user.getFisNumber()) && !checkFisNumUnique(user)) {
+                        failureNum++;
+                        failureMsg.append("<br/>" + failureNum + "、账号 " + user.getUserName() + " 导入失败：FIS账号已存在");
+                        continue;
+                    }
                     deptService.checkDeptDataScope(user.getDeptId());
                     String password = configService.selectConfigByKey("sys.user.initPassword");
                     user.setPassword(SecurityUtils.encryptPassword(password));

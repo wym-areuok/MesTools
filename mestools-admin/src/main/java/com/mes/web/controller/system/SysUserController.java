@@ -119,12 +119,18 @@ public class SysUserController extends BaseController {
     public AjaxResult add(@Validated @RequestBody SysUser user) {
         deptService.checkDeptDataScope(user.getDeptId());
         roleService.checkRoleDataScope(user.getRoleIds());
+        user.setWorkNumber(StringUtils.upperCase(user.getWorkNumber()));
+        user.setFisNumber(StringUtils.upperCase(user.getFisNumber()));
         if (!userService.checkUserNameUnique(user)) {
             return error("新增用户'" + user.getUserName() + "'失败，登录账号已存在");
         } else if (StringUtils.isNotEmpty(user.getPhonenumber()) && !userService.checkPhoneUnique(user)) {
             return error("新增用户'" + user.getUserName() + "'失败，手机号码已存在");
         } else if (StringUtils.isNotEmpty(user.getEmail()) && !userService.checkEmailUnique(user)) {
             return error("新增用户'" + user.getUserName() + "'失败，邮箱账号已存在");
+        } else if (StringUtils.isNotEmpty(user.getWorkNumber()) && !userService.checkWorkNumUnique(user)) {
+            return error("新增用户'" + user.getUserName() + "'失败，用户工号已存在");
+        } else if (StringUtils.isNotEmpty(user.getFisNumber()) && !userService.checkFisNumUnique(user)) {
+            return error("新增用户'" + user.getUserName() + "'失败，FIS账号已存在");
         }
         user.setCreateBy(getUsername());
         user.setPassword(SecurityUtils.encryptPassword(user.getPassword()));
@@ -142,12 +148,18 @@ public class SysUserController extends BaseController {
         userService.checkUserDataScope(user.getUserId());
         deptService.checkDeptDataScope(user.getDeptId());
         roleService.checkRoleDataScope(user.getRoleIds());
+        user.setWorkNumber(StringUtils.upperCase(user.getWorkNumber()));
+        user.setFisNumber(StringUtils.upperCase(user.getFisNumber()));
         if (!userService.checkUserNameUnique(user)) {
             return error("修改用户'" + user.getUserName() + "'失败，登录账号已存在");
         } else if (StringUtils.isNotEmpty(user.getPhonenumber()) && !userService.checkPhoneUnique(user)) {
             return error("修改用户'" + user.getUserName() + "'失败，手机号码已存在");
         } else if (StringUtils.isNotEmpty(user.getEmail()) && !userService.checkEmailUnique(user)) {
             return error("修改用户'" + user.getUserName() + "'失败，邮箱账号已存在");
+        } else if (StringUtils.isNotEmpty(user.getWorkNumber()) && !userService.checkWorkNumUnique(user)) {
+            return error("修改用户'" + user.getUserName() + "'失败，用户工号已存在");
+        } else if (StringUtils.isNotEmpty(user.getFisNumber()) && !userService.checkFisNumUnique(user)) {
+            return error("修改用户'" + user.getUserName() + "'失败，FIS账号已存在");
         }
         user.setUpdateBy(getUsername());
         return toAjax(userService.updateUser(user));
